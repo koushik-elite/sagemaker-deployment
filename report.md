@@ -170,52 +170,51 @@ trained on. This is generally a good idea as it allows you to see how
 each of the further processing steps affects the reviews and it also
 ensures that the data has been loaded correctly.
 
-In [43]:
-
-    print(train_X[100])
-    print(train_y[100])
-
-    I read John Everingham's story years ago in Reader's Digest, and I remember thinking what a great movie it would make. And it probably would have been had Michael Landon never got his hands on it. As far as I'm concerned, Landon was one of the worst actors on earth, and his artistic license went way over the top, similar to his massacre of the "Little House" book series is proof. The acting, for lack of a better word, is atrocious, the screenplay sloppy, and there are more close-ups of Landon's puss than should be allowed.<br /><br />This movie reflects Everingham's story as much as "Little House On The Prairie" reflects the books is was "based" on. It's just another vehicle to show off Landons horrendous hair.
-    0
-
+```python
+print(train_X[100])
+print(train_y[100])
+```
+```
+I read John Everingham's story years ago in Reader's Digest, and I remember thinking what a great movie it would make. And it probably would have been had Michael Landon never got his hands on it. As far as I'm concerned, Landon was one of the worst actors on earth, and his artistic license went way over the top, similar to his massacre of the "Little House" book series is proof. The acting, for lack of a better word, is atrocious, the screenplay sloppy, and there are more close-ups of Landon's puss than should be allowed.<br /><br />This movie reflects Everingham's story as much as "Little House On The Prairie" reflects the books is was "based" on. It's just another vehicle to show off Landons horrendous hair.
+0
+```
 The first step in processing the reviews is to make sure that any html
 tags that appear should be removed. In addition we wish to tokenize our
 input, that way words such as *entertained* and *entertaining* are
 considered the same with regard to sentiment analysis.
 
-In [44]:
+```python
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import *
 
-    import nltk
-    from nltk.corpus import stopwords
-    from nltk.stem.porter import *
+import re
+from bs4 import BeautifulSoup
 
-    import re
-    from bs4 import BeautifulSoup
-
-    def review_to_words(review):
-        nltk.download("stopwords", quiet=True)
-        stemmer = PorterStemmer()
-        
-        text = BeautifulSoup(review, "html.parser").get_text() # Remove HTML tags
-        text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower()) # Convert to lower case
-        words = text.split() # Split string into words
-        words = [w for w in words if w not in stopwords.words("english")] # Remove stopwords
-        words = [PorterStemmer().stem(w) for w in words] # stem
-        
-        return words
+def review_to_words(review):
+	nltk.download("stopwords", quiet=True)
+	stemmer = PorterStemmer()
+	
+	text = BeautifulSoup(review, "html.parser").get_text() # Remove HTML tags
+	text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower()) # Convert to lower case
+	words = text.split() # Split string into words
+	words = [w for w in words if w not in stopwords.words("english")] # Remove stopwords
+	words = [PorterStemmer().stem(w) for w in words] # stem
+	
+	return words
+```
 
 The `review_to_words` method defined above uses `BeautifulSoup` to
 remove any html tags that appear and uses the `nltk` package to tokenize
 the reviews. As a check to ensure we know how everything is working, try
 applying `review_to_words` to one of the reviews in the training set.
 
-In [45]:
+```python
+# TODO: Apply review_to_words to a review (train_X[100] or any other review)
+review_to_words(train_X[100])
+```
 
-    # TODO: Apply review_to_words to a review (train_X[100] or any other review)
-    review_to_words(train_X[100])
-
-Out[45]:
-
+```
     ['read',
      'john',
      'everingham',
@@ -285,7 +284,7 @@ Out[45]:
      'landon',
      'horrend',
      'hair']
-
+```
 **Question:** Above we mentioned that `review_to_words` method removes
 html formatting and allows us to tokenize the words found in a review,
 for example, converting *entertained* and *entertaining* into
@@ -311,64 +310,66 @@ time. This way if you are unable to complete the notebook in the current
 session, you can come back without needing to process the data a second
 time.
 
-In [7]:
+```python
+import pickle
 
-    import pickle
+cache_dir = os.path.join("../cache", "sentiment_analysis")  # where to store cache files
+os.makedirs(cache_dir, exist_ok=True)  # ensure cache directory exists
 
-    cache_dir = os.path.join("../cache", "sentiment_analysis")  # where to store cache files
-    os.makedirs(cache_dir, exist_ok=True)  # ensure cache directory exists
+def preprocess_data(data_train, data_test, labels_train, labels_test,
+					cache_dir=cache_dir, cache_file="preprocessed_data.pkl"):
+	"""Convert each review to words; read from cache if available."""
 
-    def preprocess_data(data_train, data_test, labels_train, labels_test,
-                        cache_dir=cache_dir, cache_file="preprocessed_data.pkl"):
-        """Convert each review to words; read from cache if available."""
+	# If cache_file is not None, try to read from it first
+	cache_data = None
+	print(cache_file)
+	if cache_file is not None:
+		try:
+			with open(os.path.join(cache_dir, cache_file), "rb") as f:
+				cache_data = pickle.load(f)
+			print("Read preprocessed data from cache file:", cache_file)
+		except:
+			print("File not found")
+			pass  # unable to read from cache, but that's okay
+	
+	# If cache is missing, then do the heavy lifting
+	if cache_data is None:
+		print('Preprocess training and test data to obtain words for each review')
+		# Preprocess training and test data to obtain words for each review
+		#words_train = list(map(review_to_words, data_train))
+		#words_test = list(map(review_to_words, data_test))
+		words_train = [review_to_words(review) for review in data_train]
+		words_test = [review_to_words(review) for review in data_test]
+		
+		# Write to cache file for future runs
+		print('Preprocess training and test data to obtain words for each review')
+		if cache_file is not None:
+			cache_data = dict(words_train=words_train, words_test=words_test,
+							  labels_train=labels_train, labels_test=labels_test)
+			with open(os.path.join(cache_dir, cache_file), "wb") as f:
+				pickle.dump(cache_data, f)
+			print("Wrote preprocessed data to cache file:", cache_file)
+	else:
+		print('Unpack data loaded from cache file')
+		# Unpack data loaded from cache file
+		words_train, words_test, labels_train, labels_test = (cache_data['words_train'],
+				cache_data['words_test'], cache_data['labels_train'], cache_data['labels_test'])
+	
+	return words_train, words_test, labels_train, labels_test
+```
 
-        # If cache_file is not None, try to read from it first
-        cache_data = None
-        print(cache_file)
-        if cache_file is not None:
-            try:
-                with open(os.path.join(cache_dir, cache_file), "rb") as f:
-                    cache_data = pickle.load(f)
-                print("Read preprocessed data from cache file:", cache_file)
-            except:
-                print("File not found")
-                pass  # unable to read from cache, but that's okay
-        
-        # If cache is missing, then do the heavy lifting
-        if cache_data is None:
-            print('Preprocess training and test data to obtain words for each review')
-            # Preprocess training and test data to obtain words for each review
-            #words_train = list(map(review_to_words, data_train))
-            #words_test = list(map(review_to_words, data_test))
-            words_train = [review_to_words(review) for review in data_train]
-            words_test = [review_to_words(review) for review in data_test]
-            
-            # Write to cache file for future runs
-            print('Preprocess training and test data to obtain words for each review')
-            if cache_file is not None:
-                cache_data = dict(words_train=words_train, words_test=words_test,
-                                  labels_train=labels_train, labels_test=labels_test)
-                with open(os.path.join(cache_dir, cache_file), "wb") as f:
-                    pickle.dump(cache_data, f)
-                print("Wrote preprocessed data to cache file:", cache_file)
-        else:
-            print('Unpack data loaded from cache file')
-            # Unpack data loaded from cache file
-            words_train, words_test, labels_train, labels_test = (cache_data['words_train'],
-                    cache_data['words_test'], cache_data['labels_train'], cache_data['labels_test'])
-        
-        return words_train, words_test, labels_train, labels_test
+```python
+# Preprocess data
+train_X, test_X, train_y, test_y = preprocess_data(train_X, test_X, train_y, test_y)
+```
 
-In [8]:
+```
+preprocessed_data.pkl
+Read preprocessed data from cache file: preprocessed_data.pkl
+Unpack data loaded from cache file
+```
 
-    # Preprocess data
-    train_X, test_X, train_y, test_y = preprocess_data(train_X, test_X, train_y, test_y)
-
-    preprocessed_data.pkl
-    Read preprocessed data from cache file: preprocessed_data.pkl
-    Unpack data loaded from cache file
-
-Transform the data[¶](#Transform-the-data) {#Transform-the-data}
+Transform the data
 ------------------------------------------
 
 In the XGBoost notebook we transformed the data from its word
@@ -388,7 +389,7 @@ if the length of each review is the same. To do this, we will fix a size
 for our reviews and then pad short reviews with the category 'no word'
 (which we will label `0`) and truncate long reviews.
 
-### (TODO) Create a word dictionary[¶](#(TODO)-Create-a-word-dictionary) {#(TODO)-Create-a-word-dictionary}
+### (TODO) Create a word dictionary
 
 To begin with, we need to construct a way to map words that appear in
 the reviews to integers. Here we fix the size of our vocabulary
@@ -401,39 +402,37 @@ you may wish to change this to see how it affects the model.
 > words. This is because we want to reserve the special labels `0` for
 > 'no word' and `1` for 'infrequent word'.
 
-In [9]:
+```python
+import numpy as np
+import re
+from collections import Counter
 
-    import numpy as np
-    import re
-    from collections import Counter
-
-    def build_dict(data, vocab_size = 5000):
-        """Construct and return a dictionary mapping each of the most frequently appearing words to a unique integer."""
-        
-        # TODO: Determine how often each word appears in `data`. Note that `data` is a list of sentences and that a
-        #       sentence is a list of words.
-        # print(np.concatenate( data[0:5], axis=0 ))
-        word_counts = Counter(np.concatenate( data, axis=0 ))
-        # print(word_counts)
-        # word_count = {} # A dict storing the words that appear in the reviews along with how often they occur
-        
-        # TODO: Sort the words found in `data` so that sorted_words[0] is the most frequently appearing word and
-        #       sorted_words[-1] is the least frequently appearing word.
-        
-        sorted_words = sorted(word_counts, key=word_counts.get, reverse=True)
-        # print(sorted_words[-1])
-        
-        word_dict = {} # This is what we are building, a dictionary that translates words into integers
-        for idx, word in enumerate(sorted_words[:vocab_size - 2]): # The -2 is so that we save room for the 'no word'
-            word_dict[word] = idx + 2                              # 'infrequent' labels
-            
-        return word_dict
-
-In [10]:
-
-    word_dict = build_dict(train_X)
-    # print(word_dict)
-
+def build_dict(data, vocab_size = 5000):
+	"""Construct and return a dictionary mapping each of the most frequently appearing words to a unique integer."""
+	
+	# TODO: Determine how often each word appears in `data`. Note that `data` is a list of sentences and that a
+	#       sentence is a list of words.
+	# print(np.concatenate( data[0:5], axis=0 ))
+	word_counts = Counter(np.concatenate( data, axis=0 ))
+	# print(word_counts)
+	# word_count = {} # A dict storing the words that appear in the reviews along with how often they occur
+	
+	# TODO: Sort the words found in `data` so that sorted_words[0] is the most frequently appearing word and
+	#       sorted_words[-1] is the least frequently appearing word.
+	
+	sorted_words = sorted(word_counts, key=word_counts.get, reverse=True)
+	# print(sorted_words[-1])
+	
+	word_dict = {} # This is what we are building, a dictionary that translates words into integers
+	for idx, word in enumerate(sorted_words[:vocab_size - 2]): # The -2 is so that we save room for the 'no word'
+		word_dict[word] = idx + 2                              # 'infrequent' labels
+		
+	return word_dict
+```
+```python
+word_dict = build_dict(train_X)
+# print(word_dict)
+```
 **Question:** What are the five most frequently appearing (tokenized)
 words in the training set? Does it makes sense that these words appear
 frequently in the training set?
@@ -445,35 +444,35 @@ frequently in the training set?
 it doesn't make sence in training because 'movi', 'film', 'one', 'time'
 has no sentiment.
 
-In [11]:
+```python
+# TODO: Use this space to determine the five most frequently appearing words in the training set.
+word_counts = Counter(np.concatenate( train_X, axis=0 ))
+sorted_words = sorted(word_counts, key=word_counts.get, reverse=True)
+print(sorted_words[0:5])
+print(word_counts['movi'])
+```
 
-    # TODO: Use this space to determine the five most frequently appearing words in the training set.
-    word_counts = Counter(np.concatenate( train_X, axis=0 ))
-    sorted_words = sorted(word_counts, key=word_counts.get, reverse=True)
-    print(sorted_words[0:5])
-    print(word_counts['movi'])
+```
+['movi', 'film', 'one', 'like', 'time']
+51695
+```
 
-    ['movi', 'film', 'one', 'like', 'time']
-    51695
-
-### Save `word_dict`[¶](#Save-word_dict) {#Save-word_dict}
+### Save `word_dict`
 
 Later on when we construct an endpoint which processes a submitted
 review we will need to make use of the `word_dict` which we have
 created. As such, we will save it to a file now for future use.
 
-In [12]:
+```python
+data_dir = '../data/pytorch' # The folder we will use for storing data
+if not os.path.exists(data_dir): # Make sure that the folder exists
+	os.makedirs(data_dir)
 
-    data_dir = '../data/pytorch' # The folder we will use for storing data
-    if not os.path.exists(data_dir): # Make sure that the folder exists
-        os.makedirs(data_dir)
+with open(os.path.join(data_dir, 'word_dict.pkl'), "wb") as f:
+	pickle.dump(word_dict, f)
+```
 
-In [13]:
-
-    with open(os.path.join(data_dir, 'word_dict.pkl'), "wb") as f:
-        pickle.dump(word_dict, f)
-
-### Transform the reviews[¶](#Transform-the-reviews) {#Transform-the-reviews}
+### Transform the reviews
 
 Now that we have our word dictionary which allows us to transform the
 words appearing in the reviews into integers, it is time to make use of
@@ -481,51 +480,53 @@ it and convert our reviews to their integer sequence representation,
 making sure to pad or truncate to a fixed length, which in our case is
 `500`.
 
-In [14]:
+```python
+def convert_and_pad(word_dict, sentence, pad=500):
+	NOWORD = 0 # We will use 0 to represent the 'no word' category
+	INFREQ = 1 # and we use 1 to represent the infrequent words, i.e., words not appearing in word_dict
+	
+	working_sentence = [NOWORD] * pad
+	
+	for word_index, word in enumerate(sentence[:pad]):
+		if word in word_dict:
+			working_sentence[word_index] = word_dict[word]
+		else:
+			working_sentence[word_index] = INFREQ
+			
+	return working_sentence, min(len(sentence), pad)
 
-    def convert_and_pad(word_dict, sentence, pad=500):
-        NOWORD = 0 # We will use 0 to represent the 'no word' category
-        INFREQ = 1 # and we use 1 to represent the infrequent words, i.e., words not appearing in word_dict
-        
-        working_sentence = [NOWORD] * pad
-        
-        for word_index, word in enumerate(sentence[:pad]):
-            if word in word_dict:
-                working_sentence[word_index] = word_dict[word]
-            else:
-                working_sentence[word_index] = INFREQ
-                
-        return working_sentence, min(len(sentence), pad)
+def convert_and_pad_data(word_dict, data, pad=500):
+	result = []
+	lengths = []
+	
+	for sentence in data:
+		converted, leng = convert_and_pad(word_dict, sentence, pad)
+		result.append(converted)
+		lengths.append(leng)
+		
+	return np.array(result), np.array(lengths)
+```
 
-    def convert_and_pad_data(word_dict, data, pad=500):
-        result = []
-        lengths = []
-        
-        for sentence in data:
-            converted, leng = convert_and_pad(word_dict, sentence, pad)
-            result.append(converted)
-            lengths.append(leng)
-            
-        return np.array(result), np.array(lengths)
-
-In [15]:
-
-    train_X, train_X_len = convert_and_pad_data(word_dict, train_X)
-    test_X, test_X_len = convert_and_pad_data(word_dict, test_X)
+```python
+train_X, train_X_len = convert_and_pad_data(word_dict, train_X)
+test_X, test_X_len = convert_and_pad_data(word_dict, test_X)
+```
 
 As a quick check to make sure that things are working as intended, check
 to see what one of the reviews in the training set looks like after
 having been processeed. Does this look reasonable? What is the length of
 a review in the training set?
 
-In [16]:
-
+```python
     # Use this cell to examine one of the processed reviews to make sure everything is working as intended.
     print(len(train_X[0]))
     print(train_X_len[0:1]) # 500 - 333 (non zeros) = 167
+```
 
-    500
-    [167]
+```
+500
+[167]
+```
 
 **Question:** In the cells above we use the `preprocess_data` and
 `convert_and_pad_data` methods to process both the training and testing
@@ -543,14 +544,14 @@ set. Why or why not might this be a problem?
     data length. since we using LSTM Clasifier with Embedding so we need
     to maintain a constant batch size throughout the training
 
-Step 3: Upload the data to S3[¶](#Step-3:-Upload-the-data-to-S3) {#Step-3:-Upload-the-data-to-S3}
+Step 3: Upload the data to S3
 ----------------------------------------------------------------
 
 As in the XGBoost notebook, we will need to upload the training dataset
 to S3 in order for our training code to access it. For now we will save
 it locally and we will upload to S3 later on.
 
-### Save the processed training dataset locally[¶](#Save-the-processed-training-dataset-locally) {#Save-the-processed-training-dataset-locally}
+### Save the processed training dataset locally
 
 It is important to note the format of the data that we are saving as we
 will need to know it when we write the training code. In our case, each
@@ -558,32 +559,31 @@ row of the dataset has the form `label`, `length`, `review[500]` where
 `review[500]` is a sequence of `500` integers representing the words in
 the review.
 
-In [46]:
-
-    import pandas as pd
-        
-    pd.concat([pd.DataFrame(train_y), pd.DataFrame(train_X_len), pd.DataFrame(train_X)], axis=1) \
-            .to_csv(os.path.join(data_dir, 'train.csv'), header=False, index=False)
+```python
+import pandas as pd
+	
+pd.concat([pd.DataFrame(train_y), pd.DataFrame(train_X_len), pd.DataFrame(train_X)], axis=1) \
+		.to_csv(os.path.join(data_dir, 'train.csv'), header=False, index=False)
+```
 
 ### Uploading the training data[¶](#Uploading-the-training-data) {#Uploading-the-training-data}
 
 Next, we need to upload the training data to the SageMaker default S3
 bucket so that we can provide access to it while training our model.
 
-In [47]:
+```python
+import sagemaker
 
-    import sagemaker
+sagemaker_session = sagemaker.Session()
 
-    sagemaker_session = sagemaker.Session()
+bucket = sagemaker_session.default_bucket()
+prefix = 'sagemaker/sentiment_rnn'
 
-    bucket = sagemaker_session.default_bucket()
-    prefix = 'sagemaker/sentiment_rnn'
+role = sagemaker.get_execution_role()
 
-    role = sagemaker.get_execution_role()
+input_data = sagemaker_session.upload_data(path=data_dir, bucket=bucket, key_prefix=prefix)
 
-In [48]:
-
-    input_data = sagemaker_session.upload_data(path=data_dir, bucket=bucket, key_prefix=prefix)
+```
 
 **NOTE:** The cell above uploads the entire contents of our data
 directory. This includes the `word_dict.pkl` file. This is fortunate as
@@ -592,7 +592,7 @@ arbitrary review. For now, we will just take note of the fact that it
 resides in the data directory (and so also in the S3 training bucket)
 and that we will need to make sure it gets saved in the model directory.
 
-Step 4: Build and Train the PyTorch Model[¶](#Step-4:-Build-and-Train-the-PyTorch-Model) {#Step-4:-Build-and-Train-the-PyTorch-Model}
+Step 4: Build and Train the PyTorch Model
 ----------------------------------------------------------------------------------------
 
 In the XGBoost notebook we discussed what a model is in the SageMaker
@@ -613,42 +613,42 @@ provided the necessary model object in the `model.py` file, inside of
 the `train` folder. You can see the provided implementation by running
 the cell below.
 
-In [20]:
+```python
+!pygmentize train/model.py
 
-    !pygmentize train/model.py
+import torch.nn as nn
 
-    import torch.nn as nn
+class LSTMClassifier(nn.Module):
+	"""
+	This is the simple RNN model we will be using to perform Sentiment Analysis.
+	"""
 
-    class LSTMClassifier(nn.Module):
-        """
-        This is the simple RNN model we will be using to perform Sentiment Analysis.
-        """
+	def __init__(self, embedding_dim, hidden_dim, vocab_size):
+		"""
+		Initialize the model by settingg up the various layers.
+		"""
+		super(LSTMClassifier, self).__init__()
 
-        def __init__(self, embedding_dim, hidden_dim, vocab_size):
-            """
-            Initialize the model by settingg up the various layers.
-            """
-            super(LSTMClassifier, self).__init__()
+		self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
+		self.lstm = nn.LSTM(embedding_dim, hidden_dim)
+		self.dense = nn.Linear(in_features=hidden_dim, out_features=1)
+		self.sig = nn.Sigmoid()
+		
+		self.word_dict = None
 
-            self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
-            self.lstm = nn.LSTM(embedding_dim, hidden_dim)
-            self.dense = nn.Linear(in_features=hidden_dim, out_features=1)
-            self.sig = nn.Sigmoid()
-            
-            self.word_dict = None
-
-        def forward(self, x):
-            """
-            Perform a forward pass of our model on some input.
-            """
-            x = x.t()
-            lengths = x[0,:]
-            reviews = x[1:,:]
-            embeds = self.embedding(reviews)
-            lstm_out, _ = self.lstm(embeds)
-            out = self.dense(lstm_out)
-            out = out[lengths - 1, range(len(lengths))]
-            return self.sig(out.squeeze())
+	def forward(self, x):
+		"""
+		Perform a forward pass of our model on some input.
+		"""
+		x = x.t()
+		lengths = x[0,:]
+		reviews = x[1:,:]
+		embeds = self.embedding(reviews)
+		lstm_out, _ = self.lstm(embeds)
+		out = self.dense(lstm_out)
+		out = out[lengths - 1, range(len(lengths))]
+		return self.sig(out.squeeze())
+```
 
 The important takeaway from the implementation provided is that there
 are three parameters that we may wish to tweak to improve the
@@ -667,58 +667,57 @@ compute instance that we are using is not particularly powerful.
 However, we can work on a small bit of the data to get a feel for how
 our training script is behaving.
 
-In [21]:
+```python
+import torch
+import torch.utils.data
+import pandas as pd
 
-    import torch
-    import torch.utils.data
-    import pandas as pd
+# Read in only the first 250 rows
+train_sample = pd.read_csv(os.path.join(data_dir, 'train.csv'), header=None, names=None, nrows=250)
 
-    # Read in only the first 250 rows
-    train_sample = pd.read_csv(os.path.join(data_dir, 'train.csv'), header=None, names=None, nrows=250)
+# Turn the input pandas dataframe into tensors
+train_sample_y = torch.from_numpy(train_sample[[0]].values).float().squeeze()
+train_sample_X = torch.from_numpy(train_sample.drop([0], axis=1).values).long()
 
-    # Turn the input pandas dataframe into tensors
-    train_sample_y = torch.from_numpy(train_sample[[0]].values).float().squeeze()
-    train_sample_X = torch.from_numpy(train_sample.drop([0], axis=1).values).long()
+# Build the dataset
+train_sample_ds = torch.utils.data.TensorDataset(train_sample_X, train_sample_y)
+# Build the dataloader
+train_sample_dl = torch.utils.data.DataLoader(train_sample_ds, batch_size=50)
+```
 
-    # Build the dataset
-    train_sample_ds = torch.utils.data.TensorDataset(train_sample_X, train_sample_y)
-    # Build the dataloader
-    train_sample_dl = torch.utils.data.DataLoader(train_sample_ds, batch_size=50)
-
-### (TODO) Writing the training method[¶](#(TODO)-Writing-the-training-method) {#(TODO)-Writing-the-training-method}
+### (TODO) Writing the training method
 
 Next we need to write the training code itself. This should be very
 similar to training methods that you have written before to train
 PyTorch models. We will leave any difficult aspects such as model saving
 / loading and parameter loading until a little later.
 
-In [22]:
+```python
+def train(model, train_loader, epochs, optimizer, loss_fn, device):
+	for epoch in range(1, epochs + 1):
+		model.train()
+		total_loss = 0
+		for batch in train_loader:         
+			batch_X, batch_y = batch
+			
+			batch_X = batch_X.to(device)
+			batch_y = batch_y.to(device)
+			
+			# model.zero_grad()
+			optimizer.zero_grad()
+			
+			# TODO: Complete this train method to train the model provided.
+			output = model(batch_X)
+			loss = loss_fn(output, batch_y)
+			loss.backward()
+			optimizer.step()
+			
+			total_loss += loss.data.item()
+		print("Epoch: {}, BCELoss: {}".format(epoch, total_loss / len(train_loader)))
 
-    def train(model, train_loader, epochs, optimizer, loss_fn, device):
-        for epoch in range(1, epochs + 1):
-            model.train()
-            total_loss = 0
-            for batch in train_loader:         
-                batch_X, batch_y = batch
-                
-                batch_X = batch_X.to(device)
-                batch_y = batch_y.to(device)
-                
-                # model.zero_grad()
-                optimizer.zero_grad()
-                
-                # TODO: Complete this train method to train the model provided.
-                output = model(batch_X)
-                loss = loss_fn(output, batch_y)
-                loss.backward()
-                optimizer.step()
-                
-                total_loss += loss.data.item()
-            print("Epoch: {}, BCELoss: {}".format(epoch, total_loss / len(train_loader)))
 
-In [23]:
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+```
 
 Supposing we have the training method above, we will test that it is
 working by writing a bit of code in the notebook that executes our
@@ -727,18 +726,19 @@ The reason for doing this in the notebook is so that we have an
 opportunity to fix any errors that arise early when they are easier to
 diagnose.
 
-In [24]:
+```python
+import torch.optim as optim
+from train.model import LSTMClassifier
 
-    import torch.optim as optim
-    from train.model import LSTMClassifier
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = LSTMClassifier(32, 200, 5000).to(device)
+optimizer = optim.Adam(model.parameters())
+loss_fn = torch.nn.BCELoss()
 
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = LSTMClassifier(32, 200, 5000).to(device)
-    optimizer = optim.Adam(model.parameters())
-    loss_fn = torch.nn.BCELoss()
+train(model, train_sample_dl, 10, optimizer, loss_fn, device)
+```
 
-    train(model, train_sample_dl, 10, optimizer, loss_fn, device)
-
+```
     Epoch: 1, BCELoss: 0.6950825691223145
     Epoch: 2, BCELoss: 0.6820292949676514
     Epoch: 3, BCELoss: 0.6714021444320679
@@ -749,6 +749,7 @@ In [24]:
     Epoch: 8, BCELoss: 0.5066422641277313
     Epoch: 9, BCELoss: 0.45155606269836424
     Epoch: 10, BCELoss: 0.39401604533195494
+```
 
 In order to construct a PyTorch model using SageMaker we must provide
 SageMaker with a training script. We may optionally include a directory
@@ -758,7 +759,7 @@ uploaded directory (if there is one) for a `requirements.txt` file and
 install any required Python libraries, after which the training script
 will be run.
 
-### (TODO) Training the model[¶](#(TODO)-Training-the-model) {#(TODO)-Training-the-model}
+### (TODO) Training the model
 
 When a PyTorch model is constructed in SageMaker, an entry point must be
 specified. This is the Python file which will be executed when the model
@@ -775,344 +776,349 @@ by way of arguments. These arguments can then be parsed and used in the
 training script. To see how this is done take a look at the provided
 `train/train.py` file.
 
-In [24]:
+```python
+from sagemaker.pytorch import PyTorch
 
-    from sagemaker.pytorch import PyTorch
+estimator = PyTorch(entry_point="train.py",
+					source_dir="train",
+					role=role,
+					framework_version='0.4.0',
+					train_instance_count=1,
+					train_instance_type='ml.m4.xlarge',
+					hyperparameters={
+						'epochs': 10,
+						'hidden_dim': 200,
+					})
+```
 
-    estimator = PyTorch(entry_point="train.py",
-                        source_dir="train",
-                        role=role,
-                        framework_version='0.4.0',
-                        train_instance_count=1,
-                        train_instance_type='ml.m4.xlarge',
-                        hyperparameters={
-                            'epochs': 10,
-                            'hidden_dim': 200,
-                        })
+```python
 
-In [25]:
+# this function loads the already completed training job to the Estimater
+# For first please comment it
 
-    # this function loads the already completed training job to the Estimater
-    # For first please comment it
+# my_training_job_name = 'sagemaker-pytorch-2019-02-19-16-44-24-823'
+# estimator = PyTorch.attach(my_training_job_name)
+```
 
-    # my_training_job_name = 'sagemaker-pytorch-2019-02-19-16-44-24-823'
-    # estimator = PyTorch.attach(my_training_job_name)
+```
+2019-02-19 18:28:22 Starting - Preparing the instances for training
+2019-02-19 18:28:22 Downloading - Downloading input data
+2019-02-19 18:28:22 Training - Training image download completed. Training in progress.
+2019-02-19 18:28:22 Uploading - Uploading generated training model
+2019-02-19 18:28:22 Completed - Training job completedbash: cannot set terminal process group (-1): Inappropriate ioctl for device
+bash: no job control in this shell
+2019-02-19 16:47:03,943 sagemaker-containers INFO     Imported framework sagemaker_pytorch_container.training
+2019-02-19 16:47:03,946 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
+2019-02-19 16:47:03,962 sagemaker_pytorch_container.training INFO     Block until all host DNS lookups succeed.
+2019-02-19 16:47:05,370 sagemaker_pytorch_container.training INFO     Invoking user training script.
+2019-02-19 16:47:05,595 sagemaker-containers INFO     Module train does not provide a setup.py. 
+Generating setup.py
+2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating setup.cfg
+2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating MANIFEST.in
+2019-02-19 16:47:05,596 sagemaker-containers INFO     Installing module with the following command:
+/usr/bin/python -m pip install -U . -r requirements.txt
+Processing /opt/ml/code
+Collecting pandas (from -r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/e2/a3/c42cd52e40527ba35aed53a988c485ffeddbae0722b8b756da82464baa73/pandas-0.24.1-cp35-cp35m-manylinux1_x86_64.whl (10.0MB)
+Collecting numpy (from -r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/ad/15/690c13ae714e156491392cdbdbf41b485d23c285aa698239a67f7cfc9e0a/numpy-1.16.1-cp35-cp35m-manylinux1_x86_64.whl (17.2MB)
+Collecting nltk (from -r requirements.txt (line 3))
+  Downloading https://files.pythonhosted.org/packages/6f/ed/9c755d357d33bc1931e157f537721efb5b88d2c583fe593cc09603076cc3/nltk-3.4.zip (1.4MB)
+Collecting beautifulsoup4 (from -r requirements.txt (line 4))
+  Downloading https://files.pythonhosted.org/packages/1d/5d/3260694a59df0ec52f8b4883f5d23b130bc237602a1411fa670eae12351e/beautifulsoup4-4.7.1-py3-none-any.whl (94kB)
+Collecting html5lib (from -r requirements.txt (line 5))
+  Downloading https://files.pythonhosted.org/packages/a5/62/bbd2be0e7943ec8504b517e62bab011b4946e1258842bc159e5dfde15b96/html5lib-1.0.1-py2.py3-none-any.whl (117kB)
+Requirement already satisfied, skipping upgrade: python-dateutil>=2.5.0 in /usr/local/lib/python3.5/dist-packages (from pandas->-r requirements.txt (line 1)) (2.7.5)
+Collecting pytz>=2011k (from pandas->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/61/28/1d3920e4d1d50b19bc5d24398a7cd85cc7b9a75a490570d5a30c57622d34/pytz-2018.9-py2.py3-none-any.whl (510kB)
+Requirement already satisfied, skipping upgrade: six in /usr/local/lib/python3.5/dist-packages (from nltk->-r requirements.txt (line 3)) (1.11.0)
+Collecting singledispatch (from nltk->-r requirements.txt (line 3))
+  Downloading https://files.pythonhosted.org/packages/c5/10/369f50bcd4621b263927b0a1519987a04383d4a98fb10438042ad410cf88/singledispatch-3.4.0.3-py2.py3-none-any.whl
+Collecting soupsieve>=1.2 (from beautifulsoup4->-r requirements.txt (line 4))
+  Downloading https://files.pythonhosted.org/packages/77/78/bca00cc9fa70bba1226ee70a42bf375c4e048fe69066a0d9b5e69bc2a79a/soupsieve-1.8-py2.py3-none-any.whl (88kB)
+Collecting webencodings (from html5lib->-r requirements.txt (line 5))
+  Downloading https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
+Building wheels for collected packages: nltk, train
+  Running setup.py bdist_wheel for nltk: started
+  Running setup.py bdist_wheel for nltk: finished with status 'done'
+  Stored in directory: /root/.cache/pip/wheels/4b/c8/24/b2343664bcceb7147efeb21c0b23703a05b23fcfeaceaa2a1e
+  Running setup.py bdist_wheel for train: started
+  Running setup.py bdist_wheel for train: finished with status 'done'
+  Stored in directory: /tmp/pip-ephem-wheel-cache-sqv3kkft/wheels/35/24/16/37574d11bf9bde50616c67372a334f94fa8356bc7164af8ca3
+Successfully built nltk train
+Installing collected packages: pytz, numpy, pandas, singledispatch, nltk, soupsieve, beautifulsoup4, webencodings, html5lib, train
+  Found existing installation: numpy 1.15.4
+	Uninstalling numpy-1.15.4:
+	  Successfully uninstalled numpy-1.15.4
+Successfully installed beautifulsoup4-4.7.1 html5lib-1.0.1 nltk-3.4 numpy-1.16.1 pandas-0.24.1 pytz-2018.9 singledispatch-3.4.0.3 soupsieve-1.8 train-1.0.0 webencodings-0.5.1
+You are using pip version 18.1, however version 19.0.2 is available.
+You should consider upgrading via the 'pip install --upgrade pip' command.
+2019-02-19 16:47:17,286 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
+2019-02-19 16:47:17,299 sagemaker-containers INFO     Invoking user script
 
-    2019-02-19 18:28:22 Starting - Preparing the instances for training
-    2019-02-19 18:28:22 Downloading - Downloading input data
-    2019-02-19 18:28:22 Training - Training image download completed. Training in progress.
-    2019-02-19 18:28:22 Uploading - Uploading generated training model
-    2019-02-19 18:28:22 Completed - Training job completedbash: cannot set terminal process group (-1): Inappropriate ioctl for device
-    bash: no job control in this shell
-    2019-02-19 16:47:03,943 sagemaker-containers INFO     Imported framework sagemaker_pytorch_container.training
-    2019-02-19 16:47:03,946 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
-    2019-02-19 16:47:03,962 sagemaker_pytorch_container.training INFO     Block until all host DNS lookups succeed.
-    2019-02-19 16:47:05,370 sagemaker_pytorch_container.training INFO     Invoking user training script.
-    2019-02-19 16:47:05,595 sagemaker-containers INFO     Module train does not provide a setup.py. 
-    Generating setup.py
-    2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating setup.cfg
-    2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating MANIFEST.in
-    2019-02-19 16:47:05,596 sagemaker-containers INFO     Installing module with the following command:
-    /usr/bin/python -m pip install -U . -r requirements.txt
-    Processing /opt/ml/code
-    Collecting pandas (from -r requirements.txt (line 1))
-      Downloading https://files.pythonhosted.org/packages/e2/a3/c42cd52e40527ba35aed53a988c485ffeddbae0722b8b756da82464baa73/pandas-0.24.1-cp35-cp35m-manylinux1_x86_64.whl (10.0MB)
-    Collecting numpy (from -r requirements.txt (line 2))
-      Downloading https://files.pythonhosted.org/packages/ad/15/690c13ae714e156491392cdbdbf41b485d23c285aa698239a67f7cfc9e0a/numpy-1.16.1-cp35-cp35m-manylinux1_x86_64.whl (17.2MB)
-    Collecting nltk (from -r requirements.txt (line 3))
-      Downloading https://files.pythonhosted.org/packages/6f/ed/9c755d357d33bc1931e157f537721efb5b88d2c583fe593cc09603076cc3/nltk-3.4.zip (1.4MB)
-    Collecting beautifulsoup4 (from -r requirements.txt (line 4))
-      Downloading https://files.pythonhosted.org/packages/1d/5d/3260694a59df0ec52f8b4883f5d23b130bc237602a1411fa670eae12351e/beautifulsoup4-4.7.1-py3-none-any.whl (94kB)
-    Collecting html5lib (from -r requirements.txt (line 5))
-      Downloading https://files.pythonhosted.org/packages/a5/62/bbd2be0e7943ec8504b517e62bab011b4946e1258842bc159e5dfde15b96/html5lib-1.0.1-py2.py3-none-any.whl (117kB)
-    Requirement already satisfied, skipping upgrade: python-dateutil>=2.5.0 in /usr/local/lib/python3.5/dist-packages (from pandas->-r requirements.txt (line 1)) (2.7.5)
-    Collecting pytz>=2011k (from pandas->-r requirements.txt (line 1))
-      Downloading https://files.pythonhosted.org/packages/61/28/1d3920e4d1d50b19bc5d24398a7cd85cc7b9a75a490570d5a30c57622d34/pytz-2018.9-py2.py3-none-any.whl (510kB)
-    Requirement already satisfied, skipping upgrade: six in /usr/local/lib/python3.5/dist-packages (from nltk->-r requirements.txt (line 3)) (1.11.0)
-    Collecting singledispatch (from nltk->-r requirements.txt (line 3))
-      Downloading https://files.pythonhosted.org/packages/c5/10/369f50bcd4621b263927b0a1519987a04383d4a98fb10438042ad410cf88/singledispatch-3.4.0.3-py2.py3-none-any.whl
-    Collecting soupsieve>=1.2 (from beautifulsoup4->-r requirements.txt (line 4))
-      Downloading https://files.pythonhosted.org/packages/77/78/bca00cc9fa70bba1226ee70a42bf375c4e048fe69066a0d9b5e69bc2a79a/soupsieve-1.8-py2.py3-none-any.whl (88kB)
-    Collecting webencodings (from html5lib->-r requirements.txt (line 5))
-      Downloading https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
-    Building wheels for collected packages: nltk, train
-      Running setup.py bdist_wheel for nltk: started
-      Running setup.py bdist_wheel for nltk: finished with status 'done'
-      Stored in directory: /root/.cache/pip/wheels/4b/c8/24/b2343664bcceb7147efeb21c0b23703a05b23fcfeaceaa2a1e
-      Running setup.py bdist_wheel for train: started
-      Running setup.py bdist_wheel for train: finished with status 'done'
-      Stored in directory: /tmp/pip-ephem-wheel-cache-sqv3kkft/wheels/35/24/16/37574d11bf9bde50616c67372a334f94fa8356bc7164af8ca3
-    Successfully built nltk train
-    Installing collected packages: pytz, numpy, pandas, singledispatch, nltk, soupsieve, beautifulsoup4, webencodings, html5lib, train
-      Found existing installation: numpy 1.15.4
-        Uninstalling numpy-1.15.4:
-          Successfully uninstalled numpy-1.15.4
-    Successfully installed beautifulsoup4-4.7.1 html5lib-1.0.1 nltk-3.4 numpy-1.16.1 pandas-0.24.1 pytz-2018.9 singledispatch-3.4.0.3 soupsieve-1.8 train-1.0.0 webencodings-0.5.1
-    You are using pip version 18.1, however version 19.0.2 is available.
-    You should consider upgrading via the 'pip install --upgrade pip' command.
-    2019-02-19 16:47:17,286 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
-    2019-02-19 16:47:17,299 sagemaker-containers INFO     Invoking user script
+Training Env:
 
-    Training Env:
+{
+	"input_data_config": {
+		"training": {
+			"S3DistributionType": "FullyReplicated",
+			"RecordWrapperType": "None",
+			"TrainingInputMode": "File"
+		}
+	},
+	"network_interface_name": "ethwe",
+	"framework_module": "sagemaker_pytorch_container.training:main",
+	"module_dir": "s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz",
+	"model_dir": "/opt/ml/model",
+	"num_cpus": 4,
+	"log_level": 20,
+	"hosts": [
+		"algo-1"
+	],
+	"job_name": "sagemaker-pytorch-2019-02-19-16-44-24-823",
+	"resource_config": {
+		"current_host": "algo-1",
+		"hosts": [
+			"algo-1"
+		],
+		"network_interface_name": "ethwe"
+	},
+	"module_name": "train",
+	"hyperparameters": {
+		"epochs": 10,
+		"hidden_dim": 200
+	},
+	"additional_framework_parameters": {},
+	"num_gpus": 0,
+	"current_host": "algo-1",
+	"output_intermediate_dir": "/opt/ml/output/intermediate",
+	"input_dir": "/opt/ml/input",
+	"output_data_dir": "/opt/ml/output/data",
+	"output_dir": "/opt/ml/output",
+	"user_entry_point": "train.py",
+	"input_config_dir": "/opt/ml/input/config",
+	"channel_input_dirs": {
+		"training": "/opt/ml/input/data/training"
+	}
+}
 
-    {
-        "input_data_config": {
-            "training": {
-                "S3DistributionType": "FullyReplicated",
-                "RecordWrapperType": "None",
-                "TrainingInputMode": "File"
-            }
-        },
-        "network_interface_name": "ethwe",
-        "framework_module": "sagemaker_pytorch_container.training:main",
-        "module_dir": "s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz",
-        "model_dir": "/opt/ml/model",
-        "num_cpus": 4,
-        "log_level": 20,
-        "hosts": [
-            "algo-1"
-        ],
-        "job_name": "sagemaker-pytorch-2019-02-19-16-44-24-823",
-        "resource_config": {
-            "current_host": "algo-1",
-            "hosts": [
-                "algo-1"
-            ],
-            "network_interface_name": "ethwe"
-        },
-        "module_name": "train",
-        "hyperparameters": {
-            "epochs": 10,
-            "hidden_dim": 200
-        },
-        "additional_framework_parameters": {},
-        "num_gpus": 0,
-        "current_host": "algo-1",
-        "output_intermediate_dir": "/opt/ml/output/intermediate",
-        "input_dir": "/opt/ml/input",
-        "output_data_dir": "/opt/ml/output/data",
-        "output_dir": "/opt/ml/output",
-        "user_entry_point": "train.py",
-        "input_config_dir": "/opt/ml/input/config",
-        "channel_input_dirs": {
-            "training": "/opt/ml/input/data/training"
-        }
-    }
+Environment variables:
 
-    Environment variables:
+SM_USER_ENTRY_POINT=train.py
+SM_OUTPUT_DIR=/opt/ml/output
+SM_CURRENT_HOST=algo-1
+SM_INPUT_DIR=/opt/ml/input
+SM_OUTPUT_INTERMEDIATE_DIR=/opt/ml/output/intermediate
+SM_TRAINING_ENV={"additional_framework_parameters":{},"channel_input_dirs":{"training":"/opt/ml/input/data/training"},"current_host":"algo-1","framework_module":"sagemaker_pytorch_container.training:main","hosts":["algo-1"],"hyperparameters":{"epochs":10,"hidden_dim":200},"input_config_dir":"/opt/ml/input/config","input_data_config":{"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}},"input_dir":"/opt/ml/input","job_name":"sagemaker-pytorch-2019-02-19-16-44-24-823","log_level":20,"model_dir":"/opt/ml/model","module_dir":"s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz","module_name":"train","network_interface_name":"ethwe","num_cpus":4,"num_gpus":0,"output_data_dir":"/opt/ml/output/data","output_dir":"/opt/ml/output","output_intermediate_dir":"/opt/ml/output/intermediate","resource_config":{"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"},"user_entry_point":"train.py"}
+SM_NUM_GPUS=0
+SM_NETWORK_INTERFACE_NAME=ethwe
+SM_HP_EPOCHS=10
+SM_MODULE_NAME=train
+SM_HP_HIDDEN_DIM=200
+SM_USER_ARGS=["--epochs","10","--hidden_dim","200"]
+SM_CHANNEL_TRAINING=/opt/ml/input/data/training
+PYTHONPATH=/usr/local/bin:/usr/lib/python35.zip:/usr/lib/python3.5:/usr/lib/python3.5/plat-x86_64-linux-gnu:/usr/lib/python3.5/lib-dynload:/usr/local/lib/python3.5/dist-packages:/usr/lib/python3/dist-packages
+SM_INPUT_CONFIG_DIR=/opt/ml/input/config
+SM_INPUT_DATA_CONFIG={"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}}
+SM_HOSTS=["algo-1"]
+SM_MODEL_DIR=/opt/ml/model
+SM_NUM_CPUS=4
+SM_FRAMEWORK_PARAMS={}
+SM_CHANNELS=["training"]
+SM_LOG_LEVEL=20
+SM_MODULE_DIR=s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz
+SM_RESOURCE_CONFIG={"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"}
+SM_FRAMEWORK_MODULE=sagemaker_pytorch_container.training:main
+SM_HPS={"epochs":10,"hidden_dim":200}
+SM_OUTPUT_DATA_DIR=/opt/ml/output/data
 
-    SM_USER_ENTRY_POINT=train.py
-    SM_OUTPUT_DIR=/opt/ml/output
-    SM_CURRENT_HOST=algo-1
-    SM_INPUT_DIR=/opt/ml/input
-    SM_OUTPUT_INTERMEDIATE_DIR=/opt/ml/output/intermediate
-    SM_TRAINING_ENV={"additional_framework_parameters":{},"channel_input_dirs":{"training":"/opt/ml/input/data/training"},"current_host":"algo-1","framework_module":"sagemaker_pytorch_container.training:main","hosts":["algo-1"],"hyperparameters":{"epochs":10,"hidden_dim":200},"input_config_dir":"/opt/ml/input/config","input_data_config":{"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}},"input_dir":"/opt/ml/input","job_name":"sagemaker-pytorch-2019-02-19-16-44-24-823","log_level":20,"model_dir":"/opt/ml/model","module_dir":"s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz","module_name":"train","network_interface_name":"ethwe","num_cpus":4,"num_gpus":0,"output_data_dir":"/opt/ml/output/data","output_dir":"/opt/ml/output","output_intermediate_dir":"/opt/ml/output/intermediate","resource_config":{"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"},"user_entry_point":"train.py"}
-    SM_NUM_GPUS=0
-    SM_NETWORK_INTERFACE_NAME=ethwe
-    SM_HP_EPOCHS=10
-    SM_MODULE_NAME=train
-    SM_HP_HIDDEN_DIM=200
-    SM_USER_ARGS=["--epochs","10","--hidden_dim","200"]
-    SM_CHANNEL_TRAINING=/opt/ml/input/data/training
-    PYTHONPATH=/usr/local/bin:/usr/lib/python35.zip:/usr/lib/python3.5:/usr/lib/python3.5/plat-x86_64-linux-gnu:/usr/lib/python3.5/lib-dynload:/usr/local/lib/python3.5/dist-packages:/usr/lib/python3/dist-packages
-    SM_INPUT_CONFIG_DIR=/opt/ml/input/config
-    SM_INPUT_DATA_CONFIG={"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}}
-    SM_HOSTS=["algo-1"]
-    SM_MODEL_DIR=/opt/ml/model
-    SM_NUM_CPUS=4
-    SM_FRAMEWORK_PARAMS={}
-    SM_CHANNELS=["training"]
-    SM_LOG_LEVEL=20
-    SM_MODULE_DIR=s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz
-    SM_RESOURCE_CONFIG={"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"}
-    SM_FRAMEWORK_MODULE=sagemaker_pytorch_container.training:main
-    SM_HPS={"epochs":10,"hidden_dim":200}
-    SM_OUTPUT_DATA_DIR=/opt/ml/output/data
+Invoking script with the following command:
 
-    Invoking script with the following command:
-
-    /usr/bin/python -m train --epochs 10 --hidden_dim 200
-
-
-    Using device cpu.
-    Get train data loader.
-    Model loaded with embedding_dim 32, hidden_dim 200, vocab_size 5000.
-    Epoch: 1, BCELoss: 0.6758506225079907
-    Epoch: 2, BCELoss: 0.6592074559659374
-    Epoch: 3, BCELoss: 0.5910084174603832
-    Epoch: 4, BCELoss: 0.5224082056356936
-    Epoch: 5, BCELoss: 0.4454265705176762
-    Epoch: 6, BCELoss: 0.40517756707814273
-    Epoch: 7, BCELoss: 0.3791212476029688
-    Epoch: 8, BCELoss: 0.3333704775693465
-    Epoch: 9, BCELoss: 0.30866080096789766
-    Epoch: 10, BCELoss: 0.29524244094381524
-    2019-02-19 18:28:08,256 sagemaker-containers INFO     Reporting training SUCCESS
-    Billable seconds: 6102
-
-In [37]:
-
-    estimator.fit({'training': input_data})
-
-    INFO:sagemaker:Creating training-job with name: sagemaker-pytorch-2019-02-19-16-44-24-823
-
-    2019-02-19 16:44:27 Starting - Starting the training job...
-    2019-02-19 16:44:31 Starting - Launching requested ML instances......
-    2019-02-19 16:45:32 Starting - Preparing the instances for training......
-    2019-02-19 16:46:40 Downloading - Downloading input data..
-    bash: cannot set terminal process group (-1): Inappropriate ioctl for device
-    bash: no job control in this shell
-    2019-02-19 16:47:03,943 sagemaker-containers INFO     Imported framework sagemaker_pytorch_container.training
-    2019-02-19 16:47:03,946 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
-    2019-02-19 16:47:03,962 sagemaker_pytorch_container.training INFO     Block until all host DNS lookups succeed.
-    2019-02-19 16:47:05,370 sagemaker_pytorch_container.training INFO     Invoking user training script.
-    2019-02-19 16:47:05,595 sagemaker-containers INFO     Module train does not provide a setup.py. 
-    Generating setup.py
-    2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating setup.cfg
-    2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating MANIFEST.in
-    2019-02-19 16:47:05,596 sagemaker-containers INFO     Installing module with the following command:
-    /usr/bin/python -m pip install -U . -r requirements.txt
-    Processing /opt/ml/code
-    Collecting pandas (from -r requirements.txt (line 1))
-      Downloading https://files.pythonhosted.org/packages/e2/a3/c42cd52e40527ba35aed53a988c485ffeddbae0722b8b756da82464baa73/pandas-0.24.1-cp35-cp35m-manylinux1_x86_64.whl (10.0MB)
-    Collecting numpy (from -r requirements.txt (line 2))
-      Downloading https://files.pythonhosted.org/packages/ad/15/690c13ae714e156491392cdbdbf41b485d23c285aa698239a67f7cfc9e0a/numpy-1.16.1-cp35-cp35m-manylinux1_x86_64.whl (17.2MB)
-    Collecting nltk (from -r requirements.txt (line 3))
-      Downloading https://files.pythonhosted.org/packages/6f/ed/9c755d357d33bc1931e157f537721efb5b88d2c583fe593cc09603076cc3/nltk-3.4.zip (1.4MB)
-    Collecting beautifulsoup4 (from -r requirements.txt (line 4))
-      Downloading https://files.pythonhosted.org/packages/1d/5d/3260694a59df0ec52f8b4883f5d23b130bc237602a1411fa670eae12351e/beautifulsoup4-4.7.1-py3-none-any.whl (94kB)
-    Collecting html5lib (from -r requirements.txt (line 5))
-      Downloading https://files.pythonhosted.org/packages/a5/62/bbd2be0e7943ec8504b517e62bab011b4946e1258842bc159e5dfde15b96/html5lib-1.0.1-py2.py3-none-any.whl (117kB)
-    Requirement already satisfied, skipping upgrade: python-dateutil>=2.5.0 in /usr/local/lib/python3.5/dist-packages (from pandas->-r requirements.txt (line 1)) (2.7.5)
-    Collecting pytz>=2011k (from pandas->-r requirements.txt (line 1))
-      Downloading https://files.pythonhosted.org/packages/61/28/1d3920e4d1d50b19bc5d24398a7cd85cc7b9a75a490570d5a30c57622d34/pytz-2018.9-py2.py3-none-any.whl (510kB)
-    Requirement already satisfied, skipping upgrade: six in /usr/local/lib/python3.5/dist-packages (from nltk->-r requirements.txt (line 3)) (1.11.0)
-    Collecting singledispatch (from nltk->-r requirements.txt (line 3))
-      Downloading https://files.pythonhosted.org/packages/c5/10/369f50bcd4621b263927b0a1519987a04383d4a98fb10438042ad410cf88/singledispatch-3.4.0.3-py2.py3-none-any.whl
-    Collecting soupsieve>=1.2 (from beautifulsoup4->-r requirements.txt (line 4))
-      Downloading https://files.pythonhosted.org/packages/77/78/bca00cc9fa70bba1226ee70a42bf375c4e048fe69066a0d9b5e69bc2a79a/soupsieve-1.8-py2.py3-none-any.whl (88kB)
-    Collecting webencodings (from html5lib->-r requirements.txt (line 5))
-      Downloading https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
-    Building wheels for collected packages: nltk, train
-      Running setup.py bdist_wheel for nltk: started
-      Running setup.py bdist_wheel for nltk: finished with status 'done'
-      Stored in directory: /root/.cache/pip/wheels/4b/c8/24/b2343664bcceb7147efeb21c0b23703a05b23fcfeaceaa2a1e
-      Running setup.py bdist_wheel for train: started
-      Running setup.py bdist_wheel for train: finished with status 'done'
-      Stored in directory: /tmp/pip-ephem-wheel-cache-sqv3kkft/wheels/35/24/16/37574d11bf9bde50616c67372a334f94fa8356bc7164af8ca3
-    Successfully built nltk train
-    Installing collected packages: pytz, numpy, pandas, singledispatch, nltk, soupsieve, beautifulsoup4, webencodings, html5lib, train
-      Found existing installation: numpy 1.15.4
-        Uninstalling numpy-1.15.4:
-          Successfully uninstalled numpy-1.15.4
-
-    2019-02-19 16:47:04 Training - Training image download completed. Training in progress.Successfully installed beautifulsoup4-4.7.1 html5lib-1.0.1 nltk-3.4 numpy-1.16.1 pandas-0.24.1 pytz-2018.9 singledispatch-3.4.0.3 soupsieve-1.8 train-1.0.0 webencodings-0.5.1
-    You are using pip version 18.1, however version 19.0.2 is available.
-    You should consider upgrading via the 'pip install --upgrade pip' command.
-    2019-02-19 16:47:17,286 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
-    2019-02-19 16:47:17,299 sagemaker-containers INFO     Invoking user script
-
-    Training Env:
-
-    {
-        "input_data_config": {
-            "training": {
-                "S3DistributionType": "FullyReplicated",
-                "RecordWrapperType": "None",
-                "TrainingInputMode": "File"
-            }
-        },
-        "network_interface_name": "ethwe",
-        "framework_module": "sagemaker_pytorch_container.training:main",
-        "module_dir": "s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz",
-        "model_dir": "/opt/ml/model",
-        "num_cpus": 4,
-        "log_level": 20,
-        "hosts": [
-            "algo-1"
-        ],
-        "job_name": "sagemaker-pytorch-2019-02-19-16-44-24-823",
-        "resource_config": {
-            "current_host": "algo-1",
-            "hosts": [
-                "algo-1"
-            ],
-            "network_interface_name": "ethwe"
-        },
-        "module_name": "train",
-        "hyperparameters": {
-            "epochs": 10,
-            "hidden_dim": 200
-        },
-        "additional_framework_parameters": {},
-        "num_gpus": 0,
-        "current_host": "algo-1",
-        "output_intermediate_dir": "/opt/ml/output/intermediate",
-        "input_dir": "/opt/ml/input",
-        "output_data_dir": "/opt/ml/output/data",
-        "output_dir": "/opt/ml/output",
-        "user_entry_point": "train.py",
-        "input_config_dir": "/opt/ml/input/config",
-        "channel_input_dirs": {
-            "training": "/opt/ml/input/data/training"
-        }
-    }
-
-    Environment variables:
-
-    SM_USER_ENTRY_POINT=train.py
-    SM_OUTPUT_DIR=/opt/ml/output
-    SM_CURRENT_HOST=algo-1
-    SM_INPUT_DIR=/opt/ml/input
-    SM_OUTPUT_INTERMEDIATE_DIR=/opt/ml/output/intermediate
-    SM_TRAINING_ENV={"additional_framework_parameters":{},"channel_input_dirs":{"training":"/opt/ml/input/data/training"},"current_host":"algo-1","framework_module":"sagemaker_pytorch_container.training:main","hosts":["algo-1"],"hyperparameters":{"epochs":10,"hidden_dim":200},"input_config_dir":"/opt/ml/input/config","input_data_config":{"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}},"input_dir":"/opt/ml/input","job_name":"sagemaker-pytorch-2019-02-19-16-44-24-823","log_level":20,"model_dir":"/opt/ml/model","module_dir":"s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz","module_name":"train","network_interface_name":"ethwe","num_cpus":4,"num_gpus":0,"output_data_dir":"/opt/ml/output/data","output_dir":"/opt/ml/output","output_intermediate_dir":"/opt/ml/output/intermediate","resource_config":{"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"},"user_entry_point":"train.py"}
-    SM_NUM_GPUS=0
-    SM_NETWORK_INTERFACE_NAME=ethwe
-    SM_HP_EPOCHS=10
-    SM_MODULE_NAME=train
-    SM_HP_HIDDEN_DIM=200
-    SM_USER_ARGS=["--epochs","10","--hidden_dim","200"]
-    SM_CHANNEL_TRAINING=/opt/ml/input/data/training
-    PYTHONPATH=/usr/local/bin:/usr/lib/python35.zip:/usr/lib/python3.5:/usr/lib/python3.5/plat-x86_64-linux-gnu:/usr/lib/python3.5/lib-dynload:/usr/local/lib/python3.5/dist-packages:/usr/lib/python3/dist-packages
-    SM_INPUT_CONFIG_DIR=/opt/ml/input/config
-    SM_INPUT_DATA_CONFIG={"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}}
-    SM_HOSTS=["algo-1"]
-    SM_MODEL_DIR=/opt/ml/model
-    SM_NUM_CPUS=4
-    SM_FRAMEWORK_PARAMS={}
-    SM_CHANNELS=["training"]
-    SM_LOG_LEVEL=20
-    SM_MODULE_DIR=s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz
-    SM_RESOURCE_CONFIG={"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"}
-    SM_FRAMEWORK_MODULE=sagemaker_pytorch_container.training:main
-    SM_HPS={"epochs":10,"hidden_dim":200}
-    SM_OUTPUT_DATA_DIR=/opt/ml/output/data
-
-    Invoking script with the following command:
-
-    /usr/bin/python -m train --epochs 10 --hidden_dim 200
+/usr/bin/python -m train --epochs 10 --hidden_dim 200
 
 
-    Using device cpu.
-    Get train data loader.
-    Model loaded with embedding_dim 32, hidden_dim 200, vocab_size 5000.
-    Epoch: 1, BCELoss: 0.6758506225079907
-    Epoch: 2, BCELoss: 0.6592074559659374
-    Epoch: 3, BCELoss: 0.5910084174603832
-    Epoch: 4, BCELoss: 0.5224082056356936
-    Epoch: 5, BCELoss: 0.4454265705176762
-    Epoch: 6, BCELoss: 0.40517756707814273
-    Epoch: 7, BCELoss: 0.3791212476029688
-    Epoch: 8, BCELoss: 0.3333704775693465
-    Epoch: 9, BCELoss: 0.30866080096789766
-    Epoch: 10, BCELoss: 0.29524244094381524
-    2019-02-19 18:28:08,256 sagemaker-containers INFO     Reporting training SUCCESS
+Using device cpu.
+Get train data loader.
+Model loaded with embedding_dim 32, hidden_dim 200, vocab_size 5000.
+Epoch: 1, BCELoss: 0.6758506225079907
+Epoch: 2, BCELoss: 0.6592074559659374
+Epoch: 3, BCELoss: 0.5910084174603832
+Epoch: 4, BCELoss: 0.5224082056356936
+Epoch: 5, BCELoss: 0.4454265705176762
+Epoch: 6, BCELoss: 0.40517756707814273
+Epoch: 7, BCELoss: 0.3791212476029688
+Epoch: 8, BCELoss: 0.3333704775693465
+Epoch: 9, BCELoss: 0.30866080096789766
+Epoch: 10, BCELoss: 0.29524244094381524
+2019-02-19 18:28:08,256 sagemaker-containers INFO     Reporting training SUCCESS
+Billable seconds: 6102
+```
 
-    2019-02-19 18:28:22 Uploading - Uploading generated training model
-    2019-02-19 18:28:22 Completed - Training job completed
-    Billable seconds: 6102
+```python
+estimator.fit({'training': input_data})
+```
 
-Step 5: Testing the model[¶](#Step-5:-Testing-the-model) {#Step-5:-Testing-the-model}
+```
+INFO:sagemaker:Creating training-job with name: sagemaker-pytorch-2019-02-19-16-44-24-823
+
+2019-02-19 16:44:27 Starting - Starting the training job...
+2019-02-19 16:44:31 Starting - Launching requested ML instances......
+2019-02-19 16:45:32 Starting - Preparing the instances for training......
+2019-02-19 16:46:40 Downloading - Downloading input data..
+bash: cannot set terminal process group (-1): Inappropriate ioctl for device
+bash: no job control in this shell
+2019-02-19 16:47:03,943 sagemaker-containers INFO     Imported framework sagemaker_pytorch_container.training
+2019-02-19 16:47:03,946 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
+2019-02-19 16:47:03,962 sagemaker_pytorch_container.training INFO     Block until all host DNS lookups succeed.
+2019-02-19 16:47:05,370 sagemaker_pytorch_container.training INFO     Invoking user training script.
+2019-02-19 16:47:05,595 sagemaker-containers INFO     Module train does not provide a setup.py. 
+Generating setup.py
+2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating setup.cfg
+2019-02-19 16:47:05,596 sagemaker-containers INFO     Generating MANIFEST.in
+2019-02-19 16:47:05,596 sagemaker-containers INFO     Installing module with the following command:
+/usr/bin/python -m pip install -U . -r requirements.txt
+Processing /opt/ml/code
+Collecting pandas (from -r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/e2/a3/c42cd52e40527ba35aed53a988c485ffeddbae0722b8b756da82464baa73/pandas-0.24.1-cp35-cp35m-manylinux1_x86_64.whl (10.0MB)
+Collecting numpy (from -r requirements.txt (line 2))
+  Downloading https://files.pythonhosted.org/packages/ad/15/690c13ae714e156491392cdbdbf41b485d23c285aa698239a67f7cfc9e0a/numpy-1.16.1-cp35-cp35m-manylinux1_x86_64.whl (17.2MB)
+Collecting nltk (from -r requirements.txt (line 3))
+  Downloading https://files.pythonhosted.org/packages/6f/ed/9c755d357d33bc1931e157f537721efb5b88d2c583fe593cc09603076cc3/nltk-3.4.zip (1.4MB)
+Collecting beautifulsoup4 (from -r requirements.txt (line 4))
+  Downloading https://files.pythonhosted.org/packages/1d/5d/3260694a59df0ec52f8b4883f5d23b130bc237602a1411fa670eae12351e/beautifulsoup4-4.7.1-py3-none-any.whl (94kB)
+Collecting html5lib (from -r requirements.txt (line 5))
+  Downloading https://files.pythonhosted.org/packages/a5/62/bbd2be0e7943ec8504b517e62bab011b4946e1258842bc159e5dfde15b96/html5lib-1.0.1-py2.py3-none-any.whl (117kB)
+Requirement already satisfied, skipping upgrade: python-dateutil>=2.5.0 in /usr/local/lib/python3.5/dist-packages (from pandas->-r requirements.txt (line 1)) (2.7.5)
+Collecting pytz>=2011k (from pandas->-r requirements.txt (line 1))
+  Downloading https://files.pythonhosted.org/packages/61/28/1d3920e4d1d50b19bc5d24398a7cd85cc7b9a75a490570d5a30c57622d34/pytz-2018.9-py2.py3-none-any.whl (510kB)
+Requirement already satisfied, skipping upgrade: six in /usr/local/lib/python3.5/dist-packages (from nltk->-r requirements.txt (line 3)) (1.11.0)
+Collecting singledispatch (from nltk->-r requirements.txt (line 3))
+  Downloading https://files.pythonhosted.org/packages/c5/10/369f50bcd4621b263927b0a1519987a04383d4a98fb10438042ad410cf88/singledispatch-3.4.0.3-py2.py3-none-any.whl
+Collecting soupsieve>=1.2 (from beautifulsoup4->-r requirements.txt (line 4))
+  Downloading https://files.pythonhosted.org/packages/77/78/bca00cc9fa70bba1226ee70a42bf375c4e048fe69066a0d9b5e69bc2a79a/soupsieve-1.8-py2.py3-none-any.whl (88kB)
+Collecting webencodings (from html5lib->-r requirements.txt (line 5))
+  Downloading https://files.pythonhosted.org/packages/f4/24/2a3e3df732393fed8b3ebf2ec078f05546de641fe1b667ee316ec1dcf3b7/webencodings-0.5.1-py2.py3-none-any.whl
+Building wheels for collected packages: nltk, train
+  Running setup.py bdist_wheel for nltk: started
+  Running setup.py bdist_wheel for nltk: finished with status 'done'
+  Stored in directory: /root/.cache/pip/wheels/4b/c8/24/b2343664bcceb7147efeb21c0b23703a05b23fcfeaceaa2a1e
+  Running setup.py bdist_wheel for train: started
+  Running setup.py bdist_wheel for train: finished with status 'done'
+  Stored in directory: /tmp/pip-ephem-wheel-cache-sqv3kkft/wheels/35/24/16/37574d11bf9bde50616c67372a334f94fa8356bc7164af8ca3
+Successfully built nltk train
+Installing collected packages: pytz, numpy, pandas, singledispatch, nltk, soupsieve, beautifulsoup4, webencodings, html5lib, train
+  Found existing installation: numpy 1.15.4
+	Uninstalling numpy-1.15.4:
+	  Successfully uninstalled numpy-1.15.4
+
+2019-02-19 16:47:04 Training - Training image download completed. Training in progress.Successfully installed beautifulsoup4-4.7.1 html5lib-1.0.1 nltk-3.4 numpy-1.16.1 pandas-0.24.1 pytz-2018.9 singledispatch-3.4.0.3 soupsieve-1.8 train-1.0.0 webencodings-0.5.1
+You are using pip version 18.1, however version 19.0.2 is available.
+You should consider upgrading via the 'pip install --upgrade pip' command.
+2019-02-19 16:47:17,286 sagemaker-containers INFO     No GPUs detected (normal if no gpus installed)
+2019-02-19 16:47:17,299 sagemaker-containers INFO     Invoking user script
+
+Training Env:
+
+{
+	"input_data_config": {
+		"training": {
+			"S3DistributionType": "FullyReplicated",
+			"RecordWrapperType": "None",
+			"TrainingInputMode": "File"
+		}
+	},
+	"network_interface_name": "ethwe",
+	"framework_module": "sagemaker_pytorch_container.training:main",
+	"module_dir": "s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz",
+	"model_dir": "/opt/ml/model",
+	"num_cpus": 4,
+	"log_level": 20,
+	"hosts": [
+		"algo-1"
+	],
+	"job_name": "sagemaker-pytorch-2019-02-19-16-44-24-823",
+	"resource_config": {
+		"current_host": "algo-1",
+		"hosts": [
+			"algo-1"
+		],
+		"network_interface_name": "ethwe"
+	},
+	"module_name": "train",
+	"hyperparameters": {
+		"epochs": 10,
+		"hidden_dim": 200
+	},
+	"additional_framework_parameters": {},
+	"num_gpus": 0,
+	"current_host": "algo-1",
+	"output_intermediate_dir": "/opt/ml/output/intermediate",
+	"input_dir": "/opt/ml/input",
+	"output_data_dir": "/opt/ml/output/data",
+	"output_dir": "/opt/ml/output",
+	"user_entry_point": "train.py",
+	"input_config_dir": "/opt/ml/input/config",
+	"channel_input_dirs": {
+		"training": "/opt/ml/input/data/training"
+	}
+}
+
+Environment variables:
+
+SM_USER_ENTRY_POINT=train.py
+SM_OUTPUT_DIR=/opt/ml/output
+SM_CURRENT_HOST=algo-1
+SM_INPUT_DIR=/opt/ml/input
+SM_OUTPUT_INTERMEDIATE_DIR=/opt/ml/output/intermediate
+SM_TRAINING_ENV={"additional_framework_parameters":{},"channel_input_dirs":{"training":"/opt/ml/input/data/training"},"current_host":"algo-1","framework_module":"sagemaker_pytorch_container.training:main","hosts":["algo-1"],"hyperparameters":{"epochs":10,"hidden_dim":200},"input_config_dir":"/opt/ml/input/config","input_data_config":{"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}},"input_dir":"/opt/ml/input","job_name":"sagemaker-pytorch-2019-02-19-16-44-24-823","log_level":20,"model_dir":"/opt/ml/model","module_dir":"s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz","module_name":"train","network_interface_name":"ethwe","num_cpus":4,"num_gpus":0,"output_data_dir":"/opt/ml/output/data","output_dir":"/opt/ml/output","output_intermediate_dir":"/opt/ml/output/intermediate","resource_config":{"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"},"user_entry_point":"train.py"}
+SM_NUM_GPUS=0
+SM_NETWORK_INTERFACE_NAME=ethwe
+SM_HP_EPOCHS=10
+SM_MODULE_NAME=train
+SM_HP_HIDDEN_DIM=200
+SM_USER_ARGS=["--epochs","10","--hidden_dim","200"]
+SM_CHANNEL_TRAINING=/opt/ml/input/data/training
+PYTHONPATH=/usr/local/bin:/usr/lib/python35.zip:/usr/lib/python3.5:/usr/lib/python3.5/plat-x86_64-linux-gnu:/usr/lib/python3.5/lib-dynload:/usr/local/lib/python3.5/dist-packages:/usr/lib/python3/dist-packages
+SM_INPUT_CONFIG_DIR=/opt/ml/input/config
+SM_INPUT_DATA_CONFIG={"training":{"RecordWrapperType":"None","S3DistributionType":"FullyReplicated","TrainingInputMode":"File"}}
+SM_HOSTS=["algo-1"]
+SM_MODEL_DIR=/opt/ml/model
+SM_NUM_CPUS=4
+SM_FRAMEWORK_PARAMS={}
+SM_CHANNELS=["training"]
+SM_LOG_LEVEL=20
+SM_MODULE_DIR=s3://sagemaker-ap-south-1-522754799940/sagemaker-pytorch-2019-02-19-16-44-24-823/source/sourcedir.tar.gz
+SM_RESOURCE_CONFIG={"current_host":"algo-1","hosts":["algo-1"],"network_interface_name":"ethwe"}
+SM_FRAMEWORK_MODULE=sagemaker_pytorch_container.training:main
+SM_HPS={"epochs":10,"hidden_dim":200}
+SM_OUTPUT_DATA_DIR=/opt/ml/output/data
+
+Invoking script with the following command:
+
+/usr/bin/python -m train --epochs 10 --hidden_dim 200
+
+
+Using device cpu.
+Get train data loader.
+Model loaded with embedding_dim 32, hidden_dim 200, vocab_size 5000.
+Epoch: 1, BCELoss: 0.6758506225079907
+Epoch: 2, BCELoss: 0.6592074559659374
+Epoch: 3, BCELoss: 0.5910084174603832
+Epoch: 4, BCELoss: 0.5224082056356936
+Epoch: 5, BCELoss: 0.4454265705176762
+Epoch: 6, BCELoss: 0.40517756707814273
+Epoch: 7, BCELoss: 0.3791212476029688
+Epoch: 8, BCELoss: 0.3333704775693465
+Epoch: 9, BCELoss: 0.30866080096789766
+Epoch: 10, BCELoss: 0.29524244094381524
+2019-02-19 18:28:08,256 sagemaker-containers INFO     Reporting training SUCCESS
+
+2019-02-19 18:28:22 Uploading - Uploading generated training model
+2019-02-19 18:28:22 Completed - Training job completed
+Billable seconds: 6102
+```
+
+Step 5: Testing the model
 --------------------------------------------------------
 
 As mentioned at the top of this notebook, we will be testing this model
@@ -1120,7 +1126,7 @@ by first deploying it and then sending the testing data to the deployed
 endpoint. We will do this so that we can make sure that the deployed
 model is working correctly.
 
-Step 6: Deploy the model for testing[¶](#Step-6:-Deploy-the-model-for-testing) {#Step-6:-Deploy-the-model-for-testing}
+Step 6: Deploy the model for testing
 ------------------------------------------------------------------------------
 
 Now that we have trained our model, we would like to test it to see how
@@ -1156,52 +1162,49 @@ down!**
 
 **TODO:** Deploy the trained model.
 
-In [25]:
+```python
+# TODO: Deploy the trained model
+predictor = estimator.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
+```
 
-    # TODO: Deploy the trained model
-    predictor = estimator.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
+```
+INFO:sagemaker:Creating model with name: sagemaker-pytorch-2019-02-20-04-02-07-128
+INFO:sagemaker:Creating endpoint with name sagemaker-pytorch-2019-02-19-16-44-24-823
+---------------------------------------------------------------!
+```
 
-    INFO:sagemaker:Creating model with name: sagemaker-pytorch-2019-02-20-04-02-07-128
-    INFO:sagemaker:Creating endpoint with name sagemaker-pytorch-2019-02-19-16-44-24-823
-
-    ---------------------------------------------------------------!
-
-Step 7 - Use the model for testing[¶](#Step-7---Use-the-model-for-testing) {#Step-7---Use-the-model-for-testing}
+Step 7 - Use the model for testing
 --------------------------------------------------------------------------
 
 Once deployed, we can read in the test data and send it off to our
 deployed model to get some results. Once we collect all of the results
 we can determine how accurate our model is.
 
-In [26]:
+```python
+test_X = pd.concat([pd.DataFrame(test_X_len), pd.DataFrame(test_X)], axis=1)
 
-    test_X = pd.concat([pd.DataFrame(test_X_len), pd.DataFrame(test_X)], axis=1)
+# We split the data into chunks and send each chunk seperately, accumulating the results.
 
-In [27]:
+def predict(data, rows=512):
+	split_array = np.array_split(data, int(data.shape[0] / float(rows) + 1))
+	predictions = np.array([])
+	for array in split_array:
+		predictions = np.append(predictions, predictor.predict(array))
+	
+	return predictions
 
-    # We split the data into chunks and send each chunk seperately, accumulating the results.
+predictions = predict(test_X.values)
+predictions = [round(num) for num in predictions]
+```
 
-    def predict(data, rows=512):
-        split_array = np.array_split(data, int(data.shape[0] / float(rows) + 1))
-        predictions = np.array([])
-        for array in split_array:
-            predictions = np.append(predictions, predictor.predict(array))
-        
-        return predictions
+```python
+from sklearn.metrics import accuracy_score
+accuracy_score(test_y, predictions)
+```
 
-In [28]:
-
-    predictions = predict(test_X.values)
-    predictions = [round(num) for num in predictions]
-
-In [29]:
-
-    from sklearn.metrics import accuracy_score
-    accuracy_score(test_y, predictions)
-
-Out[29]:
-
-    0.8378
+```
+0.8378
+```
 
 **Question:** How does this model compare to the XGBoost model you
 created earlier? Why might these two models perform differently on this
@@ -1215,7 +1218,7 @@ sentiment analysis `XGBoost` is better because XGBoost is the state of
 the art in most regression and classification problems with better
 result and less training. since it is mono label classification problem
 
-### (TODO) More testing[¶](#(TODO)-More-testing) {#(TODO)-More-testing}
+### (TODO) More testing
 
 We now have a trained model which has been deployed and which we can
 send processed reviews to and which returns the predicted sentiment.
@@ -1224,9 +1227,9 @@ unprocessed review. That is, we would like to send the review itself as
 a string. For example, suppose we wish to send the following review to
 our model.
 
-In [30]:
-
-    test_review = 'The simplest pleasures in life are the best, and this film is one of them. Combining a rather basic storyline of love and adventure this movie transcends the usual weekend fair with wit and unmitigated charm.'
+```python
+test_review = 'The simplest pleasures in life are the best, and this film is one of them. Combining a rather basic storyline of love and adventure this movie transcends the usual weekend fair with wit and unmitigated charm.'
+```
 
 The question we now need to answer is, how do we send this review to our
 model?
@@ -1245,120 +1248,38 @@ section one, convert `test_review` into a numpy array `test_data`
 suitable to send to our model. Remember that our model expects input of
 the form `review_length, review[500]`.
 
-In [42]:
-
-    data_X = None
-    data_len = None
-    input_data_words = review_to_words(test_review)
-    data_X, data_len = convert_and_pad_data(word_dict, input_data_words)
-    # print(data_len)
-    # print(data_X[0])
-    data_pack = np.column_stack((data_len, data_X))
-    print(data_pack)
-    data_pack = data_pack.reshape(1, -1)
-
-    data = torch.from_numpy(data_pack)
-    data = data.to(device)
-
-    [[   8    1    1 ...    0    0    0]
-     [   7 1438 1221 ...    0    0    0]
-     [   4 1221    1 ...    0    0    0]
-     ...
-     [   3 1809    1 ...    0    0    0]
-     [   7 1096 1497 ...    0    0    0]
-     [   5  894 1768 ...    0    0    0]]
-
-In [ ]:
-
-     
-
-In [43]:
-
-    # TODO: Convert test_review into a form usable by the model and save the results in test_data
-    test_data = None
-    predictions = None
-    test_review_words = review_to_words(test_review)
-    test_data, test_data_len = convert_and_pad_data(word_dict, test_review_words)
-    test_data = pd.concat([pd.DataFrame(test_data_len), pd.DataFrame(test_data)], axis=1)
-    print(test_data)
-
-        0     0     1     2     3     4     5     6     7    8   ...   490  491  \
-    0     8     1     1     1  1438  1221   704     1     1    0 ...     0    0   
-    1     7  1438  1221   704     1     1  1096  1206     0    0 ...     0    0   
-    2     4  1221     1  1045   704     0     0     0     0    0 ...     0    0   
-    3     4   425   704     1     1     0     0     0     0    0 ...     0    0   
-    4     4  1045     1  1221     1     0     0     0     0    0 ...     0    0   
-    5     3     1  1497   704     0     0     0     0     0    0 ...     0    0   
-    6     6   894     1     1   425     1  1497     0     0    0 ...     0    0   
-    7     6  1206     1     1  1768   704  1206     0     0    0 ...     0    0   
-    8     5   425     1     1     1   894     0     0     0    0 ...     0    0   
-    9     8     1     1     1  1206     1  1221     1  1497    0 ...     0    0   
-    10    4  1221     1  1730   704     0     0     0     0    0 ...     0    0   
-    11    8     1     1  1730   704  1497     1  1096  1206    0 ...     0    0   
-    12    4     1     1  1730     1     0     0     0     0    0 ...     0    0   
-    13    9     1  1206     1  1497     1   894   704  1497    1 ...     0    0   
-    14    5  1096     1  1096     1  1221     0     0     0    0 ...     0    0   
-    15    7  1809   704   704  1915   704  1497     1     0    0 ...     0    0   
-    16    4  1045     1     1  1206     0     0     0     0    0 ...     0    0   
-    17    3  1809     1     1     0     0     0     0     0    0 ...     0    0   
-    18    7  1096  1497     1     1     1     1  1121     0    0 ...     0    0   
-    19    5   894  1768     1  1206     1     0     0     0    0 ...     0    0   
-
-        492  493  494  495  496  497  498  499  
-    0     0    0    0    0    0    0    0    0  
-    1     0    0    0    0    0    0    0    0  
-    2     0    0    0    0    0    0    0    0  
-    3     0    0    0    0    0    0    0    0  
-    4     0    0    0    0    0    0    0    0  
-    5     0    0    0    0    0    0    0    0  
-    6     0    0    0    0    0    0    0    0  
-    7     0    0    0    0    0    0    0    0  
-    8     0    0    0    0    0    0    0    0  
-    9     0    0    0    0    0    0    0    0  
-    10    0    0    0    0    0    0    0    0  
-    11    0    0    0    0    0    0    0    0  
-    12    0    0    0    0    0    0    0    0  
-    13    0    0    0    0    0    0    0    0  
-    14    0    0    0    0    0    0    0    0  
-    15    0    0    0    0    0    0    0    0  
-    16    0    0    0    0    0    0    0    0  
-    17    0    0    0    0    0    0    0    0  
-    18    0    0    0    0    0    0    0    0  
-    19    0    0    0    0    0    0    0    0  
-
-    [20 rows x 501 columns]
-
 Now that we have processed the review, we can send the resulting array
 to our model to predict the sentiment of the review.
 
-In [44]:
-
+```python
     predictor.predict(test_data.values)
+```
 
-Out[44]:
-
+```
     array([0.37893045, 0.3671101 , 0.2902232 , 0.5852065 , 0.40215325,
            0.3871932 , 0.48766533, 0.41981402, 0.46499503, 0.35236686,
            0.26310295, 0.40921462, 0.40523526, 0.43050033, 0.44111556,
            0.5151103 , 0.33834177, 0.4040949 , 0.50234705, 0.52273357],
           dtype=float32)
+```
 
 Since the return value of our model is close to `1`, we can be certain
 that the review we submitted is positive.
 
-### Delete the endpoint[¶](#Delete-the-endpoint) {#Delete-the-endpoint}
+### Delete the endpoint
 
 Of course, just like in the XGBoost notebook, once we've deployed an
 endpoint it continues to run until we tell it to shut down. Since we are
 done using our endpoint for now, we can delete it.
 
-In [45]:
+```python
+estimator.delete_endpoint()
+```
 
-    estimator.delete_endpoint()
-
-    INFO:sagemaker:Deleting endpoint with name: sagemaker-pytorch-2019-02-19-16-44-24-823
-
-Step 6 (again) - Deploy the model for the web app[¶](#Step-6-(again)---Deploy-the-model-for-the-web-app) {#Step-6-(again)---Deploy-the-model-for-the-web-app}
+```
+INFO:sagemaker:Deleting endpoint with name: sagemaker-pytorch-2019-02-19-16-44-24-823
+```
+Step 6 (again) - Deploy the model for the web app
 --------------------------------------------------------------------------------------------------------
 
 Now that we know that our model is working, it's time to create some
@@ -1407,157 +1328,157 @@ binary data which would require some effort to serialize.
 Before writing our custom inference code, we will begin by taking a look
 at the code which has been provided.
 
-In [27]:
+```python
+!pygmentize serve/predict.py
 
-    !pygmentize serve/predict.py
+import argparse
+import json
+import os
+import pickle
+import sys
+import sagemaker_containers
+import pandas as pd
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.utils.data
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem.porter import *
 
-    import argparse
-    import json
-    import os
-    import pickle
-    import sys
-    import sagemaker_containers
-    import pandas as pd
-    import numpy as np
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    import torch.utils.data
-    import nltk
-    from nltk.corpus import stopwords
-    from nltk.stem.porter import *
+import re
+from bs4 import BeautifulSoup
 
-    import re
-    from bs4 import BeautifulSoup
+from model import LSTMClassifier
 
-    from model import LSTMClassifier
+from utils import review_to_words, convert_and_pad
 
-    from utils import review_to_words, convert_and_pad
+def model_fn(model_dir):
+	"""Load the PyTorch model from the `model_dir` directory."""
+	print("Loading model.")
 
-    def model_fn(model_dir):
-        """Load the PyTorch model from the `model_dir` directory."""
-        print("Loading model.")
+	# First, load the parameters used to create the model.
+	model_info = {}
+	model_info_path = os.path.join(model_dir, 'model_info.pth')
+	with open(model_info_path, 'rb') as f:
+		model_info = torch.load(f)
 
-        # First, load the parameters used to create the model.
-        model_info = {}
-        model_info_path = os.path.join(model_dir, 'model_info.pth')
-        with open(model_info_path, 'rb') as f:
-            model_info = torch.load(f)
+	print("model_info: {}".format(model_info))
 
-        print("model_info: {}".format(model_info))
+	# Determine the device and construct the model.
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	model = LSTMClassifier(model_info['embedding_dim'], model_info['hidden_dim'], model_info['vocab_size'])
 
-        # Determine the device and construct the model.
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = LSTMClassifier(model_info['embedding_dim'], model_info['hidden_dim'], model_info['vocab_size'])
+	# Load the store model parameters.
+	model_path = os.path.join(model_dir, 'model.pth')
+	with open(model_path, 'rb') as f:
+		model.load_state_dict(torch.load(f))
 
-        # Load the store model parameters.
-        model_path = os.path.join(model_dir, 'model.pth')
-        with open(model_path, 'rb') as f:
-            model.load_state_dict(torch.load(f))
+	# Load the saved word_dict.
+	word_dict_path = os.path.join(model_dir, 'word_dict.pkl')
+	with open(word_dict_path, 'rb') as f:
+		model.word_dict = pickle.load(f)
 
-        # Load the saved word_dict.
-        word_dict_path = os.path.join(model_dir, 'word_dict.pkl')
-        with open(word_dict_path, 'rb') as f:
-            model.word_dict = pickle.load(f)
+	model.to(device).eval()
 
-        model.to(device).eval()
+	print("Done loading model.")
+	return model
 
-        print("Done loading model.")
-        return model
+def input_fn(serialized_input_data, content_type):
+	print('Deserializing the input data.')
+	if content_type == 'text/plain':
+		data = serialized_input_data.decode('utf-8')
+		return data
+	raise Exception('Requested unsupported ContentType in content_type: ' + content_type)
 
-    def input_fn(serialized_input_data, content_type):
-        print('Deserializing the input data.')
-        if content_type == 'text/plain':
-            data = serialized_input_data.decode('utf-8')
-            return data
-        raise Exception('Requested unsupported ContentType in content_type: ' + content_type)
+def output_fn(prediction_output, accept):
+	print('Serializing the generated output.')
+	print(prediction_output)
+	# return str(prediction_output.item())
+	return str(prediction_output)
 
-    def output_fn(prediction_output, accept):
-        print('Serializing the generated output.')
-        print(prediction_output)
-        # return str(prediction_output.item())
-        return str(prediction_output)
+def predict_fn(input_data, model):
+	print('Inferring sentiment of input data.')
 
-    def predict_fn(input_data, model):
-        print('Inferring sentiment of input data.')
+	device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+	
+	if model.word_dict is None:
+		raise Exception('Model has not been loaded properly, no word_dict.')
+	
+	# TODO: Process input_data so that it is ready to be sent to our model.
+	#       You should produce two variables:
+	#         data_X   - A sequence of length 500 which represents the converted review
+	#         data_len - The length of the review
+	
+	data_X = None
+	data_len = None
+	input_data_words = review_to_words(input_data)
+	data_X, data_len = convert_and_pad(model.word_dict, input_data_words)
+	# data_X = pd.concat([pd.DataFrame(test_data_len), pd.DataFrame(test_data)], axis=1)
 
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-        if model.word_dict is None:
-            raise Exception('Model has not been loaded properly, no word_dict.')
-        
-        # TODO: Process input_data so that it is ready to be sent to our model.
-        #       You should produce two variables:
-        #         data_X   - A sequence of length 500 which represents the converted review
-        #         data_len - The length of the review
-        
-        data_X = None
-        data_len = None
-        input_data_words = review_to_words(input_data)
-        data_X, data_len = convert_and_pad(model.word_dict, input_data_words)
-        # data_X = pd.concat([pd.DataFrame(test_data_len), pd.DataFrame(test_data)], axis=1)
+	# Using data_X and data_len we construct an appropriate input tensor. Remember
+	# that our model expects input data of the form 'len, review[500]'.
+	# data_pack = np.hstack((data_len, data_X))
+	data_pack = np.hstack((data_len, data_X))
+	
+	data_pack = data_pack.reshape(1, -1)
+	
+	data = torch.from_numpy(data_pack)
+	data = data.to(device)
 
-        # Using data_X and data_len we construct an appropriate input tensor. Remember
-        # that our model expects input data of the form 'len, review[500]'.
-        # data_pack = np.hstack((data_len, data_X))
-        data_pack = np.hstack((data_len, data_X))
-        
-        data_pack = data_pack.reshape(1, -1)
-        
-        data = torch.from_numpy(data_pack)
-        data = data.to(device)
+	# Make sure to put the model into evaluation mode
+	model.eval()
 
-        # Make sure to put the model into evaluation mode
-        model.eval()
+	# TODO: Compute the result of applying the model to the input data. The variable `result` should
+	#       be a numpy array which contains a single integer which is either 1 or 0
 
-        # TODO: Compute the result of applying the model to the input data. The variable `result` should
-        #       be a numpy array which contains a single integer which is either 1 or 0
+	with torch.no_grad():
+		output = model.forward(data)
+		
+	result = np.round(output.numpy())
+	# result = predictor.predict(data.values)
+	print(result)
 
-        with torch.no_grad():
-            output = model.forward(data)
-            
-        result = np.round(output.numpy())
-        # result = predictor.predict(data.values)
-        print(result)
+	return result
 
-        return result
+def review_to_words(review):
+	nltk.download("stopwords", quiet=True)
+	stemmer = PorterStemmer()
+	
+	text = BeautifulSoup(review, "html.parser").get_text() # Remove HTML tags
+	text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower()) # Convert to lower case
+	words = text.split() # Split string into words
+	words = [w for w in words if w not in stopwords.words("english")] # Remove stopwords
+	words = [PorterStemmer().stem(w) for w in words] # stem
+	
+	return words
 
-    def review_to_words(review):
-        nltk.download("stopwords", quiet=True)
-        stemmer = PorterStemmer()
-        
-        text = BeautifulSoup(review, "html.parser").get_text() # Remove HTML tags
-        text = re.sub(r"[^a-zA-Z0-9]", " ", text.lower()) # Convert to lower case
-        words = text.split() # Split string into words
-        words = [w for w in words if w not in stopwords.words("english")] # Remove stopwords
-        words = [PorterStemmer().stem(w) for w in words] # stem
-        
-        return words
+def convert_and_pad(word_dict, sentence, pad=500):
+	NOWORD = 0 # We will use 0 to represent the 'no word' category
+	INFREQ = 1 # and we use 1 to represent the infrequent words, i.e., words not appearing in word_dict
+	
+	working_sentence = [NOWORD] * pad
+	
+	for word_index, word in enumerate(sentence[:pad]):
+		if word in word_dict:
+			working_sentence[word_index] = word_dict[word]
+		else:
+			working_sentence[word_index] = INFREQ
+			
+	return working_sentence, min(len(sentence), pad)
 
-    def convert_and_pad(word_dict, sentence, pad=500):
-        NOWORD = 0 # We will use 0 to represent the 'no word' category
-        INFREQ = 1 # and we use 1 to represent the infrequent words, i.e., words not appearing in word_dict
-        
-        working_sentence = [NOWORD] * pad
-        
-        for word_index, word in enumerate(sentence[:pad]):
-            if word in word_dict:
-                working_sentence[word_index] = word_dict[word]
-            else:
-                working_sentence[word_index] = INFREQ
-                
-        return working_sentence, min(len(sentence), pad)
-
-    def convert_and_pad_data(word_dict, data, pad=500):
-        result = []
-        lengths = []
-        
-        for sentence in data:
-            converted, leng = convert_and_pad(word_dict, sentence, pad)
-            result.append(converted)
-            lengths.append(leng)
-            
-        return np.array(result), np.array(lengths)
+def convert_and_pad_data(word_dict, data, pad=500):
+	result = []
+	lengths = []
+	
+	for sentence in data:
+		converted, leng = convert_and_pad(word_dict, sentence, pad)
+		result.append(converted)
+		lengths.append(leng)
+		
+	return np.array(result), np.array(lengths)
+```
 
 As mentioned earlier, the `model_fn` method is the same as the one
 provided in the training code and the `input_fn` and `output_fn` methods
@@ -1583,37 +1504,31 @@ around the `RealTimePredictor` class to accomodate simple strings. In a
 more complicated situation you may want to provide a serialization
 object, for example if you wanted to sent image data.
 
-In [28]:
+```python
+from sagemaker.predictor import RealTimePredictor
+from sagemaker.pytorch import PyTorchModel
 
-    from sagemaker.predictor import RealTimePredictor
-    from sagemaker.pytorch import PyTorchModel
+class StringPredictor(RealTimePredictor):
+	def __init__(self, endpoint_name, sagemaker_session):
+		super(StringPredictor, self).__init__(endpoint_name, sagemaker_session, content_type='text/plain')
 
-    class StringPredictor(RealTimePredictor):
-        def __init__(self, endpoint_name, sagemaker_session):
-            super(StringPredictor, self).__init__(endpoint_name, sagemaker_session, content_type='text/plain')
+model = PyTorchModel(model_data=estimator.model_data,
+					 role = role,
+					 framework_version='0.4.0',
+					 entry_point='predict.py',
+					 source_dir='serve',
+					 predictor_cls=StringPredictor)
+predictor = model.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
+```
 
-    model = PyTorchModel(model_data=estimator.model_data,
-                         role = role,
-                         framework_version='0.4.0',
-                         entry_point='predict.py',
-                         source_dir='serve',
-                         predictor_cls=StringPredictor)
-    predictor = model.deploy(initial_instance_count=1, instance_type='ml.m4.xlarge')
-
+```
     INFO:sagemaker:Creating model with name: sagemaker-pytorch-2019-02-20-17-49-05-967
     INFO:sagemaker:Creating endpoint with name sagemaker-pytorch-2019-02-20-17-49-05-967
 
     --------------------------------------------------------------!
+```
 
-In [29]:
-
-    os.environ.get('MODEL_SERVER_TIMEOUT', 120)
-
-Out[29]:
-
-    120
-
-### Testing the model[¶](#Testing-the-model) {#Testing-the-model}
+### Testing the model
 
 Now that we have deployed our model with the custom inference code, we
 should test to see if everything is working. Here we test our model by
@@ -1623,93 +1538,93 @@ of the data is that the amount of time it takes for our model to process
 the input and then perform inference is quite long and so testing the
 entire data set would be prohibitive.
 
-In [30]:
+```python
+import glob
 
-    import glob
+def test_reviews(data_dir='../data/aclImdb', stop=250):
+	
+	results = []
+	ground = []
+	
+	# We make sure to test both positive and negative reviews    
+	for sentiment in ['pos', 'neg']:
+		
+		path = os.path.join(data_dir, 'test', sentiment, '*.txt')
+		files = glob.glob(path)
+		
+		files_read = 0
+		
+		print('Starting ', sentiment, ' files')
+		
+		# Iterate through the files and send them to the predictor
+		for f in files:
+			with open(f) as review:
+				# First, we store the ground truth (was the review positive or negative)
+				if sentiment == 'pos':
+					ground.append(1)
+				else:
+					ground.append(0)
+				# Read in the review and convert to 'utf-8' for transmission via HTTP
+				review_input = review.read().encode('utf-8')
+				# Send the review to the predictor and store the results
+				result_s = predictor.predict(review_input).decode('UTF-8')
+				result_s = int(float(result_s))
+				# review_input = int.from_bytes(review_input, byteorder='big', signed=True)
+				# print(result_s)
+				results.append(result_s)
+				
+			# Sending reviews to our endpoint one at a time takes a while so we
+			# only send a small number of reviews
+			files_read += 1
+			if files_read == stop:
+				break
+			
+	return ground, results
 
-    def test_reviews(data_dir='../data/aclImdb', stop=250):
-        
-        results = []
-        ground = []
-        
-        # We make sure to test both positive and negative reviews    
-        for sentiment in ['pos', 'neg']:
-            
-            path = os.path.join(data_dir, 'test', sentiment, '*.txt')
-            files = glob.glob(path)
-            
-            files_read = 0
-            
-            print('Starting ', sentiment, ' files')
-            
-            # Iterate through the files and send them to the predictor
-            for f in files:
-                with open(f) as review:
-                    # First, we store the ground truth (was the review positive or negative)
-                    if sentiment == 'pos':
-                        ground.append(1)
-                    else:
-                        ground.append(0)
-                    # Read in the review and convert to 'utf-8' for transmission via HTTP
-                    review_input = review.read().encode('utf-8')
-                    # Send the review to the predictor and store the results
-                    result_s = predictor.predict(review_input).decode('UTF-8')
-                    result_s = int(float(result_s))
-                    # review_input = int.from_bytes(review_input, byteorder='big', signed=True)
-                    # print(result_s)
-                    results.append(result_s)
-                    
-                # Sending reviews to our endpoint one at a time takes a while so we
-                # only send a small number of reviews
-                files_read += 1
-                if files_read == stop:
-                    break
-                
-        return ground, results
+ground, results = test_reviews()
 
-In [31]:
 
-    ground, results = test_reviews()
 
-    Starting  pos  files
-    Starting  neg  files
+out = torch.tensor(0.55)
+result = np.round(out.item(),0)
 
-In [32]:
+print(result)
+```
 
-    out = torch.tensor(0.55)
-    result = np.round(out.item(),0)
+```
+Starting  pos  files
+Starting  neg  files
+   
+1.0
+```
 
-    print(result)
-
-    1.0
-
-In [33]:
-
+```python
     from sklearn.metrics import accuracy_score
     accuracy_score(ground, results)
+```
 
-Out[33]:
-
+```
     0.87
+```
 
 As an additional test, we can try sending the `test_review` that we
 looked at earlier.
 
-In [36]:
+```python
+test_review = 'The simplest pleasures in life are the best, and this film is one of them. Combining a rather basic storyline of love and adventure this movie transcends the usual weekend fair with wit and unmitigated charm.'
+predictor.predict(test_review).decode('UTF-8')
+```
 
-    test_review = 'The simplest pleasures in life are the best, and this film is one of them. Combining a rather basic storyline of love and adventure this movie transcends the usual weekend fair with wit and unmitigated charm.'
-    predictor.predict(test_review).decode('UTF-8')
-
-Out[36]:
-
+```
     '1.0'
+```
 
 Now that we know our endpoint is working as expected, we can set up the
 web page that will interact with it. If you don't have time to finish
 the project now, make sure to skip down to the end of this notebook and
 shut down your endpoint. You can deploy it again when you come back.
 
-Step 7 (again): Use the model for the web app[¶](#Step-7-(again):-Use-the-model-for-the-web-app) {#Step-7-(again):-Use-the-model-for-the-web-app}
+Step 7 (again): Use the model for the web app
 ------------------------------------------------------------------------------------------------
 
 > **TODO:** This entire section and the next contain tasks for you to
@@ -1745,7 +1660,7 @@ will pass that data on to the Lambda function and then return whatever
 the Lambda function returns. Essentially it will act as an interface
 that lets our web app communicate with the Lambda function.
 
-### Setting up a Lambda function[¶](#Setting-up-a-Lambda-function) {#Setting-up-a-Lambda-function}
+### Setting up a Lambda function
 
 The first thing we are going to do is set up a Lambda function. This
 Lambda function will be executed whenever our public API has data sent
@@ -1753,7 +1668,7 @@ to it. When it is executed it will receive the data, perform any sort of
 processing that is required, send the data (the review) to the SageMaker
 endpoint we've created and then return the result.
 
-#### Part A: Create an IAM Role for the Lambda function[¶](#Part-A:-Create-an-IAM-Role-for-the-Lambda-function) {#Part-A:-Create-an-IAM-Role-for-the-Lambda-function}
+#### Part A: Create an IAM Role for the Lambda function
 
 Since we want the Lambda function to call a SageMaker endpoint, we need
 to make sure that it has permission to do so. To do this, we will
@@ -1772,7 +1687,7 @@ Lastly, give this role a name. Make sure you use a name that you will
 remember later on, for example `LambdaSageMakerRole`. Then, click on
 **Create role**.
 
-#### Part B: Create a Lambda function[¶](#Part-B:-Create-a-Lambda-function) {#Part-B:-Create-a-Lambda-function}
+#### Part B: Create a Lambda function
 
 Now it is time to actually create the Lambda function.
 
@@ -1821,19 +1736,20 @@ editor, replace the `**ENDPOINT NAME HERE**` portion with the name of
 the endpoint that we deployed earlier. You can determine the name of the
 endpoint using the code cell below.
 
-In [35]:
-
+```python
     predictor.endpoint
+```
 
-Out[35]:
+```
 
     'sagemaker-pytorch-2019-02-20-17-49-05-967'
+```
 
 Once you have added the endpoint name to the Lambda function, click on
 **Save**. Your Lambda function is now up and running. Next we need to
 create a way for our web app to execute the Lambda function.
 
-### Setting up API Gateway[¶](#Setting-up-API-Gateway) {#Setting-up-API-Gateway}
+### Setting up API Gateway
 
 Now that our Lambda function is set up, it is time to create a new API
 using API Gateway that will trigger the Lambda function we have just
@@ -1876,7 +1792,7 @@ newly created public API as this will be needed in the next step. This
 URL can be found at the top of the page, highlighted in blue next to the
 text **Invoke URL**.
 
-Step 4: Deploying our web app[¶](#Step-4:-Deploying-our-web-app) {#Step-4:-Deploying-our-web-app}
+Step 4: Deploying our web app
 ----------------------------------------------------------------
 
 Now that we have a publicly available API, we can start using it in a
@@ -1952,12 +1868,13 @@ it. You are charged for the length of time that the endpoint is running
 so if you forget and leave it on you could end up with an unexpectedly
 large bill.
 
-In [84]:
-
+```python
     predictor.delete_endpoint()
+```
 
+```
     INFO:sagemaker:Deleting endpoint with name: sagemaker-pytorch-2019-02-20-04-57-05-924
 
-In [ ]:
+```
 
      
