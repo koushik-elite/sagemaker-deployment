@@ -1861,7 +1861,7 @@ friend's relentless optimism.
 
 **result:** Your review was POSITIVE
 
-### Delete the endpoint[¶](#Delete-the-endpoint) {#Delete-the-endpoint}
+### Delete the endpoint
 
 Remember to always shut down your endpoint if you are no longer using
 it. You are charged for the length of time that the endpoint is running
