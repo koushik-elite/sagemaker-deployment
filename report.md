@@ -1,4 +1,4 @@
-Creating a Sentiment Analysis Web App[¶](#Creating-a-Sentiment-Analysis-Web-App) {#Creating-a-Sentiment-Analysis-Web-App}
+Creating a Sentiment Analysis Web App
 ================================================================================
 
 Using PyTorch and SageMaker
@@ -65,7 +65,7 @@ In the second iteration you will customize the way that your trained
 model is deployed by including some of your own code. In addition, your
 newly deployed model will be used in the sentiment analysis web app.
 
-Step 1: Downloading the data[¶](#Step-1:-Downloading-the-data) {#Step-1:-Downloading-the-data}
+Step 1: Downloading the data
 --------------------------------------------------------------
 
 As in the XGBoost in SageMaker notebook, we will be using the [IMDb
